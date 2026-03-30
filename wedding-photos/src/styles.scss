@@ -89,3 +89,23 @@ app-root {
   display: block;
   min-height: 100vh;
 }
+
+.app-brand-logo {
+  display: block;
+  height: auto;
+  object-fit: contain;
+}
+
+.app-brand-logo--login {
+  width: min(13rem, 48vw);
+  margin: 0 auto 18px;
+}
+
+.app-brand-logo--hero {
+  width: clamp(6.5rem, 18vw, 9rem);
+  margin-bottom: 12px;
+}
+
+.app-brand-logo--menu {
+  width: 5rem;
+}
