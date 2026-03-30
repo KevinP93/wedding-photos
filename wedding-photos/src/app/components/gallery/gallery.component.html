@@ -1,0 +1,271 @@
+<div class="gallery-shell">
+  <header class="hero-panel">
+    <div class="hero-identity">
+      <img
+        class="hero-avatar"
+        [src]="getAvatarUrl(currentAvatarUrl, currentGuest, currentUsername)"
+        [alt]="'Photo de profil de ' + currentGuest"
+      />
+
+      <div class="hero-copy">
+        <p class="eyebrow">Mariage</p>
+        <h1>{{ currentGuest }}</h1>
+        <p class="hero-text">Votre album et ceux de vos proches.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button *ngIf="!isAdmin" class="primary-btn hero-action hero-action--add" (click)="goToUpload()">
+        Ajouter
+      </button>
+      <button class="secondary-btn hero-action hero-action--desktop" (click)="toggleProfileEditor()">
+        {{ isEditingProfile ? 'Fermer' : 'Mon profil' }}
+      </button>
+      <button class="secondary-btn hero-action hero-action--desktop" (click)="logout()">
+        Se deconnecter
+      </button>
+      <app-mobile-menu
+        [currentGuest]="currentGuest"
+        [currentUsername]="currentUsername"
+        [currentAvatarUrl]="currentAvatarUrl"
+        (profileRequested)="openProfileEditor()"
+        (logoutRequested)="logout()"
+      />
+    </div>
+
+    <section class="profile-panel" *ngIf="isEditingProfile">
+      <div class="profile-avatar-block">
+        <img
+          class="profile-avatar"
+          [src]="getAvatarUrl(profileAvatarUrl, profileDisplayName || currentGuest, currentUsername)"
+          [alt]="'Avatar de ' + (profileDisplayName || currentGuest)"
+        />
+
+        <input
+          #profileImageInput
+          type="file"
+          hidden
+          accept="image/*"
+          (change)="onProfileImageSelected($event)"
+        />
+
+        <div class="profile-avatar-actions">
+          <button type="button" class="secondary-btn" (click)="profileImageInput.click()">
+            Choisir une photo
+          </button>
+          <button type="button" class="secondary-btn" (click)="resetProfileImage()">
+            Avatar par defaut
+          </button>
+        </div>
+      </div>
+
+      <div class="profile-form">
+        <label for="profileDisplayName">Nom affiche</label>
+        <input
+          id="profileDisplayName"
+          type="text"
+          class="profile-input"
+          [(ngModel)]="profileDisplayName"
+          placeholder="Exemple : Camille"
+        />
+
+        <div *ngIf="profileMessage" class="profile-message">
+          {{ profileMessage }}
+        </div>
+
+        <div *ngIf="profileErrorMessage" class="profile-error">
+          {{ profileErrorMessage }}
+        </div>
+
+        <div class="profile-form-actions">
+          <button type="button" class="secondary-btn" (click)="toggleProfileEditor()">
+            Annuler
+          </button>
+          <button type="button" class="primary-btn" (click)="saveProfile()" [disabled]="isSavingProfile">
+            {{ isSavingProfile ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="hero-stats">
+      <div class="stat-card">
+        <strong>{{ albums.length }}</strong>
+        <span>albums</span>
+      </div>
+      <div class="stat-card">
+        <strong>{{ getTotalPhotoCount() }}</strong>
+        <span>photos</span>
+      </div>
+      <div class="stat-card">
+        <strong>{{ otherAlbums.length }}</strong>
+        <span>a voir</span>
+      </div>
+    </div>
+  </header>
+
+  <div *ngIf="adminMessage" class="admin-message">
+    {{ adminMessage }}
+  </div>
+
+  <section class="section-block" *ngIf="userAlbum as currentAlbum">
+    <div class="section-heading">
+      <div>
+        <p class="section-eyebrow">Mon album</p>
+        <h2>Votre album</h2>
+      </div>
+    </div>
+
+    <article class="album-card album-card--owner" (click)="viewAlbum(currentAlbum)">
+      <div class="album-copy">
+        <div class="album-title-row">
+          <div class="album-identity">
+            <img
+              class="album-avatar"
+              [src]="getAvatarUrl(currentAlbum.avatarUrl, currentAlbum.name, currentAlbum.ownerUsername)"
+              [alt]="'Photo de profil de ' + currentAlbum.name"
+            />
+
+            <div>
+              <p class="album-kicker">Album personnel</p>
+              <h3>{{ currentAlbum.name }}</h3>
+            </div>
+          </div>
+
+          <div class="album-actions">
+            <span class="photo-count">{{ getPhotoCount(currentAlbum) }} media</span>
+            <button
+              *ngIf="isAdmin"
+              type="button"
+              class="delete-album-btn"
+              (click)="deleteAlbum(currentAlbum, $event)"
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
+
+        <div class="album-footer">
+          <span>Ouvrir</span>
+          <span class="album-date">Dernier ajout le {{ getAlbumMomentLabel(currentAlbum) }}</span>
+        </div>
+      </div>
+
+      <div class="album-preview" *ngIf="currentAlbum.photos.length > 0; else ownerEmpty">
+        <div class="preview-grid preview-grid--owner">
+          <div
+            class="preview-tile"
+            *ngFor="let photo of getPreviewPhotos(currentAlbum); trackBy: trackByPhotoId; let index = index"
+            [class.preview-tile--hero]="index === 0"
+          >
+            <img
+              *ngIf="photo.type === 'image'; else ownerVideo"
+              [src]="photo.url"
+              [alt]="'Photo partagee par ' + currentAlbum.name"
+              loading="lazy"
+            />
+            <ng-template #ownerVideo>
+              <video [src]="photo.url" muted playsinline autoplay loop preload="metadata"></video>
+            </ng-template>
+            <span class="preview-badge">{{ photo.type === 'video' ? 'Video' : 'Photo' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #ownerEmpty>
+        <div class="empty-preview">
+          <span class="empty-ornament">+</span>
+          <h4>Votre album est pret</h4>
+          <p>Ajoutez vos photos.</p>
+        </div>
+      </ng-template>
+    </article>
+  </section>
+
+  <section class="section-block">
+    <div class="section-heading">
+      <div>
+        <p class="section-eyebrow">Galerie</p>
+        <h2>Les invites</h2>
+      </div>
+    </div>
+
+    <div class="album-list" *ngIf="otherAlbums.length > 0; else noAlbums">
+      <article
+        class="album-card"
+        *ngFor="let album of otherAlbums; trackBy: trackByAlbumId"
+        (click)="viewAlbum(album)"
+      >
+        <div class="album-copy">
+          <div class="album-title-row">
+            <div class="album-identity">
+              <img
+                class="album-avatar"
+                [src]="getAvatarUrl(album.avatarUrl, album.name, album.ownerUsername)"
+                [alt]="'Photo de profil de ' + album.name"
+              />
+
+              <div>
+                <p class="album-kicker">Invite</p>
+                <h3>{{ album.name }}</h3>
+              </div>
+            </div>
+
+            <div class="album-actions">
+              <span class="photo-count">{{ getPhotoCount(album) }} media</span>
+              <button
+                *ngIf="isAdmin"
+                type="button"
+                class="delete-album-btn"
+                (click)="deleteAlbum(album, $event)"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+
+          <div class="album-footer">
+            <span>Ouvrir</span>
+            <span class="album-date">Mis a jour le {{ getAlbumMomentLabel(album) }}</span>
+          </div>
+        </div>
+
+        <div class="album-preview" *ngIf="album.photos.length > 0; else guestEmpty">
+          <div class="preview-grid">
+            <div
+              class="preview-tile"
+              *ngFor="let photo of getPreviewPhotos(album); trackBy: trackByPhotoId; let index = index"
+              [class.preview-tile--hero]="index === 0"
+            >
+              <img
+                *ngIf="photo.type === 'image'; else guestVideo"
+                [src]="photo.url"
+                [alt]="'Photo partagee par ' + album.name"
+                loading="lazy"
+              />
+              <ng-template #guestVideo>
+                <video [src]="photo.url" muted playsinline autoplay loop preload="metadata"></video>
+              </ng-template>
+              <span class="preview-badge">{{ photo.type === 'video' ? 'Video' : 'Photo' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #guestEmpty>
+          <div class="empty-preview empty-preview--soft">
+            <h4>Album pret</h4>
+            <p>{{ album.name }} n'a rien ajoute pour le moment.</p>
+          </div>
+        </ng-template>
+      </article>
+    </div>
+
+    <ng-template #noAlbums>
+      <div class="empty-state">
+        <p class="empty-state__eyebrow">Galerie</p>
+        <h3>Les albums apparaitront ici</h3>
+        <p>Chaque invite retrouve son album en se connectant.</p>
+      </div>
+    </ng-template>
+  </section>
+</div>

@@ -1,0 +1,45 @@
+<div class="mobile-menu">
+  <button
+    type="button"
+    class="mobile-menu__toggle"
+    [class.mobile-menu__toggle--open]="isOpen"
+    (click)="toggleMenu()"
+    [attr.aria-expanded]="isOpen"
+    aria-label="Ouvrir le menu"
+  >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+
+  <div *ngIf="isOpen" class="mobile-menu__backdrop" (click)="closeMenu()"></div>
+
+  <aside *ngIf="isOpen" class="mobile-menu__panel" role="dialog" aria-modal="true" aria-label="Navigation mobile">
+    <div class="mobile-menu__header">
+      <img class="mobile-menu__avatar" [src]="avatarUrl" [alt]="'Photo de profil de ' + currentGuest" />
+
+      <div class="mobile-menu__copy">
+        <strong>{{ currentGuest }}</strong>
+        <span>Menu mariage</span>
+      </div>
+
+      <button type="button" class="mobile-menu__close" (click)="closeMenu()" aria-label="Fermer le menu">
+        ×
+      </button>
+    </div>
+
+    <nav class="mobile-menu__links">
+      <a routerLink="/gallery" class="mobile-menu__link" (click)="closeMenu()">
+        Accueil
+      </a>
+
+      <button *ngIf="showProfile" type="button" class="mobile-menu__link" (click)="openProfile()">
+        Profil
+      </button>
+
+      <button type="button" class="mobile-menu__link mobile-menu__link--danger" (click)="logout()">
+        Se deconnecter
+      </button>
+    </nav>
+  </aside>
+</div>

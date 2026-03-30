@@ -1,0 +1,156 @@
+﻿<div class="detail-shell" *ngIf="album as currentAlbum">
+  <header class="detail-hero">
+    <button type="button" class="back-btn" (click)="goBack()">
+      Retour
+    </button>
+
+    <div class="hero-copy">
+      <img
+        class="hero-avatar"
+        [src]="getAvatarUrl(currentAlbum.avatarUrl, currentAlbum.name, currentAlbum.ownerUsername)"
+        [alt]="'Photo de profil de ' + currentAlbum.name"
+      />
+      <p class="eyebrow">Album</p>
+      <h1>{{ currentAlbum.name }}</h1>
+      <p>{{ currentAlbum.photos.length }} souvenir(s)</p>
+    </div>
+
+    <div class="hero-actions">
+      <span class="stat-pill">{{ currentAlbum.photos.length }} media</span>
+      <button *ngIf="canUploadToCurrentAlbum()" type="button" class="primary-btn hero-action hero-action--add" (click)="goToUpload()">
+        Ajouter
+      </button>
+      <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
+        Se deconnecter
+      </button>
+      <app-mobile-menu
+        [currentGuest]="currentGuest"
+        [currentUsername]="currentUsername"
+        [currentAvatarUrl]="currentAvatarUrl"
+        (profileRequested)="goToProfile()"
+        (logoutRequested)="logout()"
+      />
+    </div>
+  </header>
+
+  <div *ngIf="adminMessage" class="admin-message">
+    {{ adminMessage }}
+  </div>
+
+  <section class="media-grid" *ngIf="currentAlbum.photos.length > 0; else noPhotos">
+    <button
+      type="button"
+      class="media-card"
+      *ngFor="let photo of currentAlbum.photos; trackBy: trackByPhotoId; let index = index"
+      [attr.data-photo-id]="photo.id"
+      (click)="viewPhoto(index)"
+    >
+      <img
+        *ngIf="photo.type === 'image'; else gridVideo"
+        [src]="photo.url"
+        [alt]="'Photo partagee par ' + currentAlbum.name"
+        loading="lazy"
+      />
+
+      <ng-template #gridVideo>
+        <video [src]="photo.url" muted playsinline preload="metadata"></video>
+      </ng-template>
+
+      <span class="media-video-indicator" *ngIf="photo.type === 'video'">▶</span>
+    </button>
+  </section>
+
+  <ng-template #noPhotos>
+    <section class="empty-state">
+      <p class="empty-state__eyebrow">Album</p>
+      <h2>Pas encore de photo</h2>
+      <button *ngIf="canUploadToCurrentAlbum()" type="button" class="primary-btn" (click)="goToUpload()">
+        Ajouter
+      </button>
+    </section>
+  </ng-template>
+
+  <div class="viewer-backdrop" *ngIf="selectedPhoto as activePhoto" (click)="onViewerBackdrop($event)">
+    <div class="viewer-panel">
+      <button type="button" class="viewer-close" (click)="closeViewer()">
+        Fermer
+      </button>
+
+      <button
+        *ngIf="currentAlbum.photos.length > 1"
+        type="button"
+        class="viewer-nav viewer-nav--prev"
+        (click)="showPrevious()"
+      >
+        ‹
+      </button>
+
+      <div
+        class="viewer-media"
+        (touchstart)="onViewerTouchStart($event)"
+        (touchend)="onViewerTouchEnd($event)"
+      >
+        <img
+          *ngIf="activePhoto.type === 'image'; else viewerVideo"
+          [src]="activePhoto.url"
+          [alt]="'Photo partagee par ' + activePhoto.uploadedBy"
+        />
+
+        <ng-template #viewerVideo>
+          <video [src]="activePhoto.url" controls autoplay playsinline preload="metadata"></video>
+        </ng-template>
+      </div>
+
+      <button
+        *ngIf="currentAlbum.photos.length > 1"
+        type="button"
+        class="viewer-nav viewer-nav--next"
+        (click)="showNext()"
+      >
+        ›
+      </button>
+
+      <div class="viewer-footer">
+        <div class="viewer-copy">
+          <img
+            class="viewer-avatar"
+            [src]="getAvatarUrl(currentAlbum.avatarUrl, currentAlbum.name, currentAlbum.ownerUsername)"
+            [alt]="'Photo de profil de ' + currentAlbum.name"
+          />
+          <p class="viewer-kicker">{{ currentAlbum.name }}</p>
+          <h2>{{ activePhoto.type === 'video' ? 'Video partagee' : 'Photo partagee' }}</h2>
+          <p>
+            {{ selectedIndex + 1 }} / {{ currentAlbum.photos.length }}
+            · {{ activePhoto.uploadedAt | date:'d MMMM yyyy, HH:mm' }}
+          </p>
+        </div>
+
+        <div class="viewer-side">
+          <div class="viewer-stats">
+            <span>{{ getPhotoStats(activePhoto).likes }} j'aime</span>
+            <span>{{ getPhotoStats(activePhoto).downloads }} sauvegardes</span>
+          </div>
+
+          <div class="viewer-actions">
+            <button
+              type="button"
+              class="ghost-btn like-btn"
+              [class.ghost-btn--liked]="isLiked(activePhoto)"
+              (click)="toggleLike(activePhoto)"
+            >
+              {{ isLiked(activePhoto) ? 'J\'aime deja' : 'J\'aime' }}
+            </button>
+
+            <button type="button" class="primary-btn download-btn" (click)="downloadPhoto(activePhoto)">
+              Enregistrer
+            </button>
+
+            <button *ngIf="canDeleteFromCurrentAlbum()" type="button" class="danger-btn" (click)="deletePhoto(activePhoto)">
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

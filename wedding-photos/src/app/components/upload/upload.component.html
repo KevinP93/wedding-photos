@@ -1,0 +1,120 @@
+<div class="upload-shell">
+  <header class="upload-hero">
+    <div class="hero-actions">
+      <button type="button" class="back-btn hero-action" (click)="goBack()">
+        Retour
+      </button>
+      <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
+        Se deconnecter
+      </button>
+      <app-mobile-menu
+        [currentGuest]="currentGuest"
+        [currentUsername]="currentUsername"
+        [currentAvatarUrl]="currentAvatarUrl"
+        (profileRequested)="goToProfile()"
+        (logoutRequested)="logout()"
+      />
+    </div>
+
+    <div class="hero-copy">
+      <p class="eyebrow">Mon album</p>
+      <h1>Ajouter</h1>
+      <p>{{ currentGuest }}</p>
+    </div>
+  </header>
+
+  <section class="upload-panel">
+    <input
+      #fileInput
+      type="file"
+      hidden
+      multiple
+      accept="image/*,video/*"
+      (change)="onFileSelected($event)"
+    />
+
+    <button
+      type="button"
+      class="drop-zone"
+      [class.drop-zone--active]="isDragging"
+      (click)="fileInput.click()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <span class="drop-zone__ornament"></span>
+      <span class="drop-zone__eyebrow">Ajouter</span>
+      <strong>Choisir dans la galerie</strong>
+      <p>Photos et videos de votre telephone.</p>
+    </button>
+
+    <div class="selection-head" *ngIf="selectedFiles.length > 0">
+      <div>
+        <p class="section-eyebrow">Selection</p>
+        <h2>{{ selectedFiles.length }} element(s)</h2>
+      </div>
+    </div>
+
+    <div class="preview-grid" *ngIf="selectedFiles.length > 0">
+      <article class="preview-card" *ngFor="let selectedFile of selectedFiles; let index = index">
+        <div class="preview-media">
+          <img
+            *ngIf="selectedFile.type === 'image'; else selectedVideo"
+            [src]="selectedFile.previewUrl"
+            [alt]="'Previsualisation du fichier ' + selectedFile.file.name"
+          />
+
+          <ng-template #selectedVideo>
+            <video [src]="selectedFile.previewUrl" controls muted playsinline preload="metadata"></video>
+          </ng-template>
+        </div>
+
+        <div class="preview-meta">
+          <span class="media-type">{{ getFileTypeLabel(selectedFile) }}</span>
+          <p>{{ getFileSize(selectedFile.file.size) }}</p>
+        </div>
+
+        <button
+          type="button"
+          class="remove-btn"
+          (click)="removeFile(index)"
+          [disabled]="isUploading"
+        >
+          Retirer
+        </button>
+      </article>
+    </div>
+
+    <div class="selection-bar" *ngIf="selectedFiles.length > 0">
+      <button type="button" class="ghost-btn" (click)="clearSelectedFiles()" [disabled]="isUploading">
+        Tout retirer
+      </button>
+      <button type="button" class="primary-btn" (click)="uploadFiles()" [disabled]="isUploading">
+        Envoyer dans mon album
+      </button>
+    </div>
+
+    <div class="progress-panel" *ngIf="isUploading">
+      <div class="progress-head">
+        <strong>Envoi en cours</strong>
+        <span>{{ uploadProgress | number:'1.0-0' }}%</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+      </div>
+      <p>Ajout en cours dans l'album {{ currentGuest }}.</p>
+    </div>
+
+    <div class="result-panel" *ngIf="!isUploading && (uploadResults.success > 0 || uploadResults.error > 0)">
+      <div class="result-pill result-pill--success" *ngIf="uploadResults.success > 0">
+        {{ uploadResults.success }} ajoute(s)
+      </div>
+      <div class="result-pill result-pill--error" *ngIf="uploadResults.error > 0">
+        {{ uploadResults.error }} erreur(s)
+      </div>
+      <button type="button" class="ghost-btn" (click)="goBack()">
+        Retour
+      </button>
+    </div>
+  </section>
+</div>

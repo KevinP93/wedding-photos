@@ -1,0 +1,106 @@
+<div class="login-shell">
+  <div class="login-decor">
+    <span class="decor-orb decor-orb--left"></span>
+    <span class="decor-orb decor-orb--right"></span>
+    <span class="decor-ring"></span>
+  </div>
+
+  <section class="login-card">
+    <p class="eyebrow">Souvenirs du mariage</p>
+    <h1>Photos du mariage</h1>
+    <p class="subtitle">Connectez-vous pour retrouver votre album.</p>
+
+    <div class="mode-switch" role="tablist" aria-label="Connexion ou creation de compte">
+      <button
+        type="button"
+        class="mode-btn"
+        [class.mode-btn--active]="mode === 'signin'"
+        (click)="setMode('signin')"
+      >
+        Se connecter
+      </button>
+      <button
+        type="button"
+        class="mode-btn"
+        [class.mode-btn--active]="mode === 'signup'"
+        (click)="setMode('signup')"
+      >
+        Creer un compte
+      </button>
+    </div>
+
+    <form (ngSubmit)="onSubmit()" class="login-form">
+      <ng-container *ngIf="mode === 'signup'">
+        <label for="displayName">Nom affiche dans la galerie</label>
+        <input
+          id="displayName"
+          type="text"
+          [(ngModel)]="displayName"
+          name="displayName"
+          placeholder="Exemple : Camille"
+          autocomplete="name"
+          required
+          class="form-input"
+        />
+      </ng-container>
+
+      <label for="username">Nom utilisateur unique</label>
+      <input
+        id="username"
+        type="text"
+        [(ngModel)]="username"
+        name="username"
+        placeholder="Exemple : camille-dupont"
+        autocomplete="username"
+        required
+        class="form-input"
+      />
+
+      <p class="helper-note" *ngIf="normalizedUsernamePreview">
+        Connexion : <strong>{{ normalizedUsernamePreview }}</strong>
+      </p>
+
+      <label for="password">Mot de passe</label>
+      <input
+        id="password"
+        type="password"
+        [(ngModel)]="password"
+        name="password"
+        placeholder="Au moins 6 caracteres"
+        autocomplete="{{ mode === 'signup' ? 'new-password' : 'current-password' }}"
+        required
+        class="form-input"
+      />
+
+      <ng-container *ngIf="mode === 'signup'">
+        <label for="confirmPassword">Confirmer le mot de passe</label>
+        <input
+          id="confirmPassword"
+          type="password"
+          [(ngModel)]="confirmPassword"
+          name="confirmPassword"
+          placeholder="Retapez le mot de passe"
+          autocomplete="new-password"
+          required
+          class="form-input"
+        />
+      </ng-container>
+
+      <div *ngIf="infoMessage" class="info-message">
+        {{ infoMessage }}
+      </div>
+
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+
+      <button
+        type="submit"
+        class="submit-btn"
+        [disabled]="isLoading || !username.trim() || !password.trim() || (mode === 'signup' && (!displayName.trim() || !confirmPassword.trim()))"
+      >
+        {{ isLoading ? 'Veuillez patienter...' : (mode === 'signup' ? 'Creer mon album' : 'Ouvrir mon album') }}
+      </button>
+    </form>
+  </section>
+</div>
