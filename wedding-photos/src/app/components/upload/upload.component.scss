@@ -310,6 +310,7 @@
 
   .upload-hero {
     border-radius: 0 0 22px 22px;
+    overflow: visible;
   }
 
   .upload-panel,
@@ -342,6 +343,7 @@
     left: 14px;
     width: auto;
     justify-content: space-between;
+    z-index: 10;
   }
 
   .preview-grid {

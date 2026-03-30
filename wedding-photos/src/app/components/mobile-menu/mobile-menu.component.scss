@@ -6,6 +6,8 @@
   .mobile-menu {
     display: block;
     margin-left: auto;
+    position: relative;
+    z-index: 1400;
   }
 
   .mobile-menu__toggle,
@@ -54,7 +56,7 @@
     inset: 0;
     background: rgba(42, 28, 31, 0.34);
     backdrop-filter: blur(10px);
-    z-index: 1190;
+    z-index: 1390;
   }
 
   .mobile-menu__panel {
@@ -69,7 +71,7 @@
     border: 1px solid rgba(126, 88, 78, 0.12);
     background: rgba(255, 251, 247, 0.96);
     box-shadow: 0 24px 54px rgba(55, 36, 39, 0.22);
-    z-index: 1200;
+    z-index: 1400;
   }
 
   .mobile-menu__header {
