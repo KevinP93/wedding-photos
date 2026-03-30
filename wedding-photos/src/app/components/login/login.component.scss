@@ -245,15 +245,26 @@ label {
 
 @media (max-width: 640px) {
   .login-shell {
-    padding: 20px 16px;
+    align-items: start;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px 24px;
   }
 
   .login-card {
-    padding: 32px 22px;
-    border-radius: 26px;
+    width: 100%;
+    padding: 26px 18px;
+    border-radius: 28px;
   }
 
-  .mode-switch,
+  .eyebrow,
+  h1,
+  .subtitle {
+    text-align: center;
+  }
+
+  .mode-switch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .promise-grid {
     grid-template-columns: 1fr;
   }

@@ -2,14 +2,19 @@ import { Injectable } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { filter, map } from 'rxjs/operators';
 
+type DeferredInstallPrompt = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 @Injectable({
   providedIn: 'root'
 })
 export class PwaService {
-  private promptEvent: any;
+  private promptEvent: DeferredInstallPrompt | null = null;
+  private readonly dismissStorageKey = 'pwa-install-dismissed';
 
   constructor(private swUpdate: SwUpdate) {
-    // Écouter les mises à jour disponibles
     if (swUpdate.isEnabled) {
       swUpdate.versionUpdates
         .pipe(
@@ -24,43 +29,67 @@ export class PwaService {
     }
   }
 
-  // Vérifier si l'app peut être installée
   canInstall(): boolean {
     return this.promptEvent !== null;
   }
 
-  // Installer l'app
+  isStandalone(): boolean {
+    return window.matchMedia('(display-mode: standalone)').matches
+      || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+  }
+
+  isIosSafari(): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
+      || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+    const isSafari = userAgent.includes('safari')
+      && !userAgent.includes('crios')
+      && !userAgent.includes('fxios')
+      && !userAgent.includes('edgios');
+
+    return isIosDevice && isSafari;
+  }
+
+  hasDismissedInstallPrompt(): boolean {
+    return localStorage.getItem(this.dismissStorageKey) === 'true';
+  }
+
+  shouldShowIosInstallHint(): boolean {
+    return this.isIosSafari() && !this.isStandalone() && !this.hasDismissedInstallPrompt();
+  }
+
+  dismissInstallPrompt(): void {
+    localStorage.setItem(this.dismissStorageKey, 'true');
+  }
+
   install(): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.promptEvent) {
-        this.promptEvent.prompt();
-        this.promptEvent.userChoice.then((choiceResult: any) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('App installée avec succès');
-            resolve();
-          } else {
-            console.log('Installation refusée');
-            reject();
-          }
-          this.promptEvent = null;
-        });
-      } else {
+      if (!this.promptEvent) {
         reject('Installation non disponible');
+        return;
       }
+
+      this.promptEvent.prompt();
+      void this.promptEvent.userChoice.then((choiceResult) => {
+        this.promptEvent = null;
+
+        if (choiceResult.outcome === 'accepted') {
+          resolve();
+          return;
+        }
+
+        reject();
+      });
     });
   }
 
-  // Enregistrer l'événement d'installation
-  setPromptEvent(event: any): void {
+  setPromptEvent(event: DeferredInstallPrompt): void {
     this.promptEvent = event;
   }
 
-  // Vérifier les mises à jour
   checkForUpdates(): void {
     if (this.swUpdate.isEnabled) {
-      this.swUpdate.checkForUpdate().then(() => {
-        console.log('Vérification des mises à jour terminée');
-      });
+      void this.swUpdate.checkForUpdate();
     }
   }
 }

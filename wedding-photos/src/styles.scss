@@ -94,6 +94,7 @@ app-root {
   display: block;
   height: auto;
   object-fit: contain;
+  max-width: 100%;
 }
 
 .app-brand-logo--login {
@@ -108,4 +109,20 @@ app-root {
 
 .app-brand-logo--menu {
   width: 5rem;
+}
+
+@media (max-width: 720px) {
+  .app-brand-logo--login {
+    width: min(11rem, 62vw);
+    margin-bottom: 12px;
+  }
+
+  .app-brand-logo--hero {
+    width: min(7rem, 42vw);
+    margin: 0 auto 10px;
+  }
+
+  .app-brand-logo--menu {
+    width: 4.25rem;
+  }
 }

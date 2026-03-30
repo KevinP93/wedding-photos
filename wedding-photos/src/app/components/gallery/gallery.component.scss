@@ -501,22 +501,35 @@
 
 @media (max-width: 700px) {
   .gallery-shell {
-    padding: 18px 14px 44px;
+    width: 100%;
+    padding: 0 0 44px;
   }
 
-  .hero-panel,
+  .hero-panel {
+    border-radius: 0 0 24px 24px;
+  }
+
   .album-card,
   .empty-state,
   .admin-message {
     border-radius: 24px;
   }
 
-  .hero-panel,
+  .hero-panel {
+    padding: calc(env(safe-area-inset-top) + 72px) 16px 18px;
+  }
+
   .album-card {
-    padding: 20px;
+    padding: 18px;
+    border-radius: 22px;
   }
 
   .hero-actions {
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 10px);
+    right: 14px;
+    left: 14px;
+    margin-top: 0;
     justify-content: space-between;
   }
 
@@ -530,6 +543,7 @@
 
   .hero-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .section-heading,
@@ -546,18 +560,35 @@
     display: grid;
   }
 
+  .hero-identity,
+  .hero-copy {
+    text-align: center;
+    justify-items: center;
+  }
+
+  .hero-avatar {
+    width: 4.6rem;
+    height: 4.6rem;
+  }
+
   .section-note,
   .album-actions {
     text-align: left;
     justify-content: start;
   }
 
+  .section-block {
+    padding-inline: 14px;
+  }
+
   .preview-grid {
-    min-height: 13rem;
+    min-height: 11rem;
+    gap: 6px;
+    padding: 6px;
   }
 
   .stat-card {
-    padding: 14px 12px;
+    padding: 12px 10px;
     border-radius: 18px;
     text-align: center;
   }
@@ -568,5 +599,13 @@
 
   .stat-card span {
     font-size: 0.78rem;
+  }
+
+  .profile-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-avatar-block {
+    justify-items: center;
   }
 }

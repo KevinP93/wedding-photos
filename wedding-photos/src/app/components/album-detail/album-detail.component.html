@@ -73,9 +73,12 @@
 
   <div class="viewer-backdrop" *ngIf="selectedPhoto as activePhoto" (click)="onViewerBackdrop($event)">
     <div class="viewer-panel">
-      <button type="button" class="viewer-close" (click)="closeViewer()">
-        Fermer
-      </button>
+      <div class="viewer-topbar">
+        <span class="viewer-counter">{{ selectedIndex + 1 }} / {{ currentAlbum.photos.length }}</span>
+        <button type="button" class="viewer-close" (click)="closeViewer()">
+          Fermer
+        </button>
+      </div>
 
       <button
         *ngIf="currentAlbum.photos.length > 1"
@@ -127,10 +130,14 @@
         </div>
 
         <div class="viewer-side">
-          <div class="viewer-stats">
-            <span>{{ getPhotoStats(activePhoto).likes }} j'aime</span>
-            <span>{{ getPhotoStats(activePhoto).downloads }} sauvegardes</span>
-          </div>
+        <div class="viewer-stats">
+          <span>{{ getPhotoStats(activePhoto).likes }} j'aime</span>
+          <span>{{ getPhotoStats(activePhoto).downloads }} sauvegardes</span>
+        </div>
+
+        <p class="viewer-hint" *ngIf="viewerHint">
+          {{ viewerHint }}
+        </p>
 
           <div class="viewer-actions">
             <button

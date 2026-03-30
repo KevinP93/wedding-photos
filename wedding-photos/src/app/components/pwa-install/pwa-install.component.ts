@@ -1,174 +1,221 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PwaService } from '../../services/pwa.service';
+
+type DeferredInstallPrompt = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
 
 @Component({
   selector: 'app-pwa-install',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div *ngIf="showInstallPrompt" class="install-prompt">
-      <div class="install-content">
-        <div class="install-icon">📱</div>
-        <div class="install-text">
-          <h3>Installer l'app</h3>
-          <p>Ajoutez cette app à votre écran d'accueil pour un accès rapide !</p>
-        </div>
-        <div class="install-buttons">
-          <button class="install-btn" (click)="installApp()">Installer</button>
-          <button class="dismiss-btn" (click)="dismissPrompt()">Plus tard</button>
-        </div>
+    <aside *ngIf="showInstallPrompt" class="install-sheet" role="dialog" aria-label="Installer l'application">
+      <div class="install-sheet__logo-wrap">
+        <img class="install-sheet__logo" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
       </div>
-    </div>
+
+      <div class="install-sheet__copy">
+        <p class="install-sheet__eyebrow">Application</p>
+        <h3>{{ isIosFlow ? 'Installer sur iPhone' : 'Installer l application' }}</h3>
+        <p *ngIf="!isIosFlow">Ajoutez l app a votre ecran d accueil pour l utiliser comme une vraie app.</p>
+        <p *ngIf="isIosFlow">Dans Safari, touchez Partager puis Sur l ecran d accueil.</p>
+        <ol *ngIf="isIosFlow" class="install-sheet__steps">
+          <li>Ouvrez le menu Partager de Safari</li>
+          <li>Touchez Sur l ecran d accueil</li>
+          <li>Ajoutez l app a votre iPhone</li>
+        </ol>
+      </div>
+
+      <div class="install-sheet__actions">
+        <button *ngIf="!isIosFlow" type="button" class="install-sheet__primary" (click)="installApp()">
+          Installer
+        </button>
+        <button *ngIf="isIosFlow" type="button" class="install-sheet__primary" (click)="dismissPrompt()">
+          Compris
+        </button>
+        <button type="button" class="install-sheet__secondary" (click)="dismissPrompt()">
+          Plus tard
+        </button>
+      </div>
+    </aside>
   `,
   styles: [`
-    .install-prompt {
+    .install-sheet {
       position: fixed;
-      bottom: 20px;
-      left: 20px;
-      right: 20px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-      z-index: 1000;
-      animation: slideUp 0.3s ease-out;
+      right: 16px;
+      bottom: calc(env(safe-area-inset-bottom) + 16px);
+      left: 16px;
+      z-index: 1400;
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(126, 88, 78, 0.14);
+      background: rgba(255, 251, 247, 0.96);
+      box-shadow: 0 24px 54px rgba(55, 36, 39, 0.22);
+      backdrop-filter: blur(16px);
     }
 
-    @keyframes slideUp {
-      from {
-        transform: translateY(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-
-    .install-content {
+    .install-sheet__logo-wrap {
       display: flex;
-      align-items: center;
-      padding: 16px;
-      gap: 12px;
+      justify-content: center;
     }
 
-    .install-icon {
-      font-size: 2rem;
-      flex-shrink: 0;
+    .install-sheet__logo {
+      width: 5.5rem;
+      height: auto;
+      object-fit: contain;
     }
 
-    .install-text {
-      flex: 1;
+    .install-sheet__copy {
+      text-align: center;
     }
 
-    .install-text h3 {
-      margin: 0 0 4px 0;
-      font-size: 1.1rem;
-      color: #333;
+    .install-sheet__eyebrow {
+      margin: 0 0 8px;
+      color: #bd7869;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.18rem;
+      text-transform: uppercase;
     }
 
-    .install-text p {
+    .install-sheet__copy h3 {
       margin: 0;
-      font-size: 0.9rem;
-      color: #666;
+      color: #412d2f;
+      font-size: 1.25rem;
+      line-height: 1.1;
     }
 
-    .install-buttons {
-      display: flex;
+    .install-sheet__copy p {
+      margin: 10px 0 0;
+      color: #725a5c;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .install-sheet__steps {
+      margin: 12px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
       gap: 8px;
-      flex-shrink: 0;
     }
 
-    .install-btn, .dismiss-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
+    .install-sheet__steps li {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.74);
+      color: #412d2f;
       font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .install-sheet__actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .install-sheet__primary,
+    .install-sheet__secondary {
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 18px;
+      font-size: 0.96rem;
+      font-weight: 700;
       cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    .install-btn {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+    .install-sheet__primary {
+      color: #fff9f6;
+      background: linear-gradient(135deg, #825156, #bd7869);
+      box-shadow: 0 16px 32px rgba(130, 81, 86, 0.24);
     }
 
-    .install-btn:hover {
-      transform: translateY(-1px);
+    .install-sheet__secondary {
+      background: rgba(255, 255, 255, 0.78);
+      color: #412d2f;
+      border: 1px solid rgba(126, 88, 78, 0.14);
     }
 
-    .dismiss-btn {
-      background: #f5f5f5;
-      color: #666;
-    }
-
-    .dismiss-btn:hover {
-      background: #e5e5e5;
-    }
-
-    @media (max-width: 480px) {
-      .install-content {
-        flex-direction: column;
-        text-align: center;
-      }
-      
-      .install-buttons {
-        width: 100%;
-        justify-content: center;
+    @media (min-width: 720px) {
+      .install-sheet {
+        left: auto;
+        width: min(24rem, calc(100vw - 32px));
       }
     }
   `]
 })
 export class PwaInstallComponent implements OnInit, OnDestroy {
   showInstallPrompt = false;
-  private deferredPrompt: any;
+  isIosFlow = false;
 
   constructor(private pwaService: PwaService) {}
 
   ngOnInit(): void {
-    // Écouter l'événement beforeinstallprompt
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      this.deferredPrompt = e;
-      this.pwaService.setPromptEvent(e);
-      this.showInstallPrompt = true;
-    });
-
-    // Masquer le prompt si l'app est déjà installée
-    window.addEventListener('appinstalled', () => {
-      this.showInstallPrompt = false;
-      this.deferredPrompt = null;
-    });
+    window.addEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt as EventListener);
+    window.addEventListener('appinstalled', this.handleAppInstalled);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+    this.syncState();
   }
 
   ngOnDestroy(): void {
-    window.removeEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt);
+    window.removeEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt as EventListener);
     window.removeEventListener('appinstalled', this.handleAppInstalled);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
-  installApp(): void {
-    this.pwaService.install().then(() => {
+  async installApp(): Promise<void> {
+    try {
+      await this.pwaService.install();
       this.showInstallPrompt = false;
-    }).catch((error) => {
-      console.error('Erreur lors de l\'installation:', error);
-    });
+    } catch (error) {
+      console.error('Erreur lors de l installation:', error);
+    }
   }
 
   dismissPrompt(): void {
+    this.pwaService.dismissInstallPrompt();
     this.showInstallPrompt = false;
-    // Ne plus afficher le prompt pendant cette session
-    localStorage.setItem('pwa-install-dismissed', 'true');
   }
 
-  private handleBeforeInstallPrompt = (e: any) => {
-    e.preventDefault();
-    this.deferredPrompt = e;
-    this.pwaService.setPromptEvent(e);
-    this.showInstallPrompt = true;
+  private syncState(): void {
+    if (this.pwaService.isStandalone() || this.pwaService.hasDismissedInstallPrompt()) {
+      this.showInstallPrompt = false;
+      return;
+    }
+
+    if (this.pwaService.canInstall()) {
+      this.isIosFlow = false;
+      this.showInstallPrompt = true;
+      return;
+    }
+
+    if (this.pwaService.shouldShowIosInstallHint()) {
+      this.isIosFlow = true;
+      this.showInstallPrompt = true;
+      return;
+    }
+
+    this.showInstallPrompt = false;
+  }
+
+  private handleBeforeInstallPrompt = (event: Event): void => {
+    event.preventDefault();
+    this.pwaService.setPromptEvent(event as DeferredInstallPrompt);
+    this.syncState();
   };
 
-  private handleAppInstalled = () => {
+  private handleAppInstalled = (): void => {
     this.showInstallPrompt = false;
-    this.deferredPrompt = null;
+  };
+
+  private handleVisibilityChange = (): void => {
+    if (document.visibilityState === 'visible') {
+      this.syncState();
+    }
   };
 }

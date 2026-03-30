@@ -23,6 +23,7 @@ export class AlbumDetailComponent implements OnInit {
   currentAvatarUrl = '';
   isAdmin = false;
   adminMessage = '';
+  viewerHint = '';
   selectedIndex = -1;
   private touchStartX = 0;
   private touchStartY = 0;
@@ -133,10 +134,12 @@ export class AlbumDetailComponent implements OnInit {
   }
 
   viewPhoto(index: number): void {
+    this.viewerHint = '';
     this.selectedIndex = index;
   }
 
   closeViewer(): void {
+    this.viewerHint = '';
     this.selectedIndex = -1;
   }
 
@@ -145,6 +148,7 @@ export class AlbumDetailComponent implements OnInit {
       return;
     }
 
+    this.viewerHint = '';
     this.selectedIndex = (this.selectedIndex - 1 + this.album.photos.length) % this.album.photos.length;
   }
 
@@ -153,6 +157,7 @@ export class AlbumDetailComponent implements OnInit {
       return;
     }
 
+    this.viewerHint = '';
     this.selectedIndex = (this.selectedIndex + 1) % this.album.photos.length;
   }
 
@@ -259,6 +264,8 @@ export class AlbumDetailComponent implements OnInit {
       return;
     }
 
+    this.viewerHint = '';
+
     try {
       await this.albumService.incrementDownloadCount(this.album.id, photo.id);
       this.refreshAlbum();
@@ -276,16 +283,51 @@ export class AlbumDetailComponent implements OnInit {
       }
 
       const blob = await response.blob();
+      const fileName = this.getDownloadName(photo, blob);
+
+      if (this.shouldUseNativeShare(blob, fileName)) {
+        const file = new File([blob], fileName, {
+          type: blob.type || (photo.type === 'video' ? 'video/mp4' : 'image/jpeg')
+        });
+        const shareNavigator = navigator as Navigator & {
+          canShare?: (data?: ShareData) => boolean;
+        };
+
+        if (shareNavigator.canShare?.({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: fileName
+            });
+
+            this.viewerHint = photo.type === 'video'
+              ? 'Utilisez Enregistrer la video dans la feuille de partage iPhone.'
+              : 'Utilisez Enregistrer l image dans la feuille de partage iPhone.';
+            this.showDownloadAnimation(photo.id);
+            return;
+          } catch (shareError) {
+            if (shareError instanceof DOMException && shareError.name === 'AbortError') {
+              return;
+            }
+
+            console.error('Partage natif impossible, fallback telechargement.', shareError);
+          }
+        }
+      }
+
       const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      link.download = this.getDownloadName(photo, blob);
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (error) {
       console.error('Telechargement direct impossible, ouverture du media.', error);
+      this.viewerHint = photo.type === 'video'
+        ? 'Sur iPhone, utilisez Partager puis Enregistrer la video.'
+        : 'Sur iPhone, utilisez Partager puis Enregistrer l image.';
       window.open(photo.url, '_blank', 'noopener');
     }
 
@@ -358,6 +400,25 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     return photo.type === 'video' ? 'mp4' : 'jpg';
+  }
+
+  private shouldUseNativeShare(blob: Blob, fileName: string): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
+      || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+    const shareNavigator = navigator as Navigator & {
+      canShare?: (data?: ShareData) => boolean;
+    };
+
+    if (!isIosDevice || typeof navigator.share !== 'function' || typeof File === 'undefined') {
+      return false;
+    }
+
+    const file = new File([blob], fileName, {
+      type: blob.type || 'application/octet-stream'
+    });
+
+    return Boolean(shareNavigator.canShare?.({ files: [file] }));
   }
 
   private showLikeAnimation(photoId: string): void {

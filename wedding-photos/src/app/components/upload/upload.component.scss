@@ -21,6 +21,7 @@
   grid-template-columns: auto minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+  position: relative;
 }
 
 .hero-actions {
@@ -303,10 +304,14 @@
 
 @media (max-width: 720px) {
   .upload-shell {
-    padding: 18px 14px 40px;
+    width: 100%;
+    padding: 0 0 40px;
   }
 
-  .upload-hero,
+  .upload-hero {
+    border-radius: 0 0 22px 22px;
+  }
+
   .upload-panel,
   .progress-panel,
   .result-panel,
@@ -314,9 +319,14 @@
     border-radius: 22px;
   }
 
-  .upload-hero,
+  .upload-hero {
+    padding: calc(env(safe-area-inset-top) + 72px) 16px 18px;
+  }
+
   .upload-panel {
-    padding: 18px;
+    margin-top: 14px;
+    border-radius: 22px;
+    padding: 18px 16px;
   }
 
   .upload-hero,
@@ -326,7 +336,11 @@
   }
 
   .hero-actions {
-    width: 100%;
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 10px);
+    right: 14px;
+    left: 14px;
+    width: auto;
     justify-content: space-between;
   }
 
@@ -336,6 +350,15 @@
 
   .hero-action--desktop {
     display: none;
+  }
+
+  .hero-copy {
+    text-align: center;
+  }
+
+  .drop-zone {
+    padding: 28px 16px;
+    border-radius: 22px;
   }
 
   .remove-btn,

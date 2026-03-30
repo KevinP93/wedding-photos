@@ -20,6 +20,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 18px;
   align-items: start;
+  position: relative;
 }
 
 .back-btn,
@@ -292,10 +293,31 @@
   align-items: center;
 }
 
-.viewer-close {
+.viewer-topbar {
   position: absolute;
   top: 14px;
   right: 14px;
+  left: 14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.viewer-counter {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.viewer-close {
+  position: static;
   z-index: 1;
 }
 
@@ -377,6 +399,13 @@
   font-weight: 700;
 }
 
+.viewer-hint {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
 .viewer-actions {
   display: flex;
   flex-wrap: wrap;
@@ -424,20 +453,29 @@
 
 @media (max-width: 720px) {
   .detail-shell {
-    padding: 18px 14px 42px;
+    width: 100%;
+    padding: 0 0 42px;
   }
 
-  .detail-hero,
+  .detail-hero {
+    border-radius: 0 0 22px 22px;
+  }
+
   .empty-state,
   .admin-message {
     border-radius: 22px;
   }
 
   .detail-hero {
-    padding: 18px;
+    padding: calc(env(safe-area-inset-top) + 64px) 16px 18px;
   }
 
   .hero-actions {
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 10px);
+    right: 14px;
+    left: 14px;
+    margin-top: 0;
     justify-content: space-between;
   }
 
@@ -446,8 +484,23 @@
     display: none;
   }
 
+  .hero-copy {
+    text-align: center;
+  }
+
+  .hero-avatar,
+  .app-brand-logo--hero {
+    margin-inline: auto;
+  }
+
+  .hero-avatar {
+    width: 4.2rem;
+    height: 4.2rem;
+  }
+
   .media-grid {
-    gap: 2px;
+    margin-top: 14px;
+    gap: 1px;
   }
 
   .media-card {
@@ -456,6 +509,8 @@
 
   .viewer-backdrop {
     padding: 0;
+    background: #000;
+    backdrop-filter: none;
   }
 
   .viewer-panel {
@@ -463,28 +518,99 @@
     max-height: 100dvh;
     min-height: 100dvh;
     border-radius: 0;
-    padding: 14px;
-    grid-template-rows: auto auto;
+    border: 0;
+    background: #000;
+    box-shadow: none;
+    padding: 0;
+    gap: 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .viewer-topbar {
+    position: relative;
+    top: 0;
+    right: 0;
+    left: 0;
+    padding: calc(env(safe-area-inset-top) + 8px) 14px 8px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.72), transparent);
+  }
+
+  .viewer-counter,
+  .viewer-close {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    color: #fffdfb;
   }
 
   .viewer-media {
-    height: clamp(14rem, 46dvh, 24rem);
-    max-height: calc(100dvh - 19rem);
-    min-height: 14rem;
+    grid-column: 1;
+    grid-row: 2;
+    height: calc(100dvh - 15rem);
+    max-height: none;
+    min-height: 0;
+    border-radius: 0;
+    background: #000;
+  }
+
+  .viewer-media img,
+  .viewer-media video {
+    background: #000;
   }
 
   .viewer-actions {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .viewer-footer {
+    gap: 12px;
+    padding: 16px 14px calc(env(safe-area-inset-bottom) + 18px);
+    background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.9) 22%);
+  }
+
+  .viewer-copy h2,
+  .viewer-copy p,
+  .viewer-hint,
+  .viewer-kicker {
+    color: #fffdfb;
+  }
+
+  .viewer-avatar {
+    width: 2.9rem;
+    height: 2.9rem;
+    margin-bottom: 8px;
+  }
+
+  .viewer-stats span {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fffdfb;
+  }
+
+  .viewer-actions .ghost-btn,
+  .viewer-actions .primary-btn,
+  .viewer-actions .danger-btn {
+    box-shadow: none;
+  }
+
+  .viewer-actions .ghost-btn {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fffdfb;
+  }
+
+  .viewer-actions .primary-btn {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fffdfb;
+  }
+
+  .viewer-actions .danger-btn {
+    background: rgba(179, 100, 100, 0.86);
   }
 
   .viewer-actions .ghost-btn,
   .viewer-actions .primary-btn,
   .viewer-actions .danger-btn {
     width: 100%;
-  }
-
-  .viewer-actions .danger-btn {
-    grid-column: 1 / -1;
   }
 }
