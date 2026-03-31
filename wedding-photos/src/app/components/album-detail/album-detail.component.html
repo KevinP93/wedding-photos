@@ -1,7 +1,7 @@
 ﻿<div class="detail-shell" *ngIf="album as currentAlbum">
   <header class="detail-hero">
-    <button type="button" class="back-btn" (click)="goBack()">
-      Retour
+    <button type="button" class="back-btn back-btn--icon" (click)="goBack()" aria-label="Retour">
+      &#8592;
     </button>
 
     <div class="hero-copy">
@@ -10,7 +10,6 @@
         [src]="getAvatarUrl(currentAlbum.avatarUrl, currentAlbum.name, currentAlbum.ownerUsername)"
         [alt]="'Photo de profil de ' + currentAlbum.name"
       />
-      <img class="app-brand-logo app-brand-logo--hero" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
       <p class="eyebrow">Album</p>
       <h1>{{ currentAlbum.name }}</h1>
       <p>{{ currentAlbum.photos.length }} souvenir(s)</p>
@@ -75,8 +74,8 @@
     <div class="viewer-panel">
       <div class="viewer-topbar">
         <span class="viewer-counter">{{ selectedIndex + 1 }} / {{ currentAlbum.photos.length }}</span>
-        <button type="button" class="viewer-close" (click)="closeViewer()">
-          Fermer
+        <button type="button" class="viewer-close viewer-close--icon" (click)="closeViewer()" aria-label="Fermer">
+          &times;
         </button>
       </div>
 

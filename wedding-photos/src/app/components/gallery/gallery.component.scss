@@ -535,6 +535,10 @@
     z-index: 10;
   }
 
+  .hero-actions app-mobile-menu {
+    margin-left: auto;
+  }
+
   .hero-action--desktop {
     display: none;
   }

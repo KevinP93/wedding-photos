@@ -49,6 +49,16 @@
   border: 1px solid rgba(126, 88, 78, 0.14);
 }
 
+.back-btn--icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 .back-btn:hover,
 .primary-btn:hover,
 .ghost-btn:hover,
@@ -344,6 +354,10 @@
     width: auto;
     justify-content: space-between;
     z-index: 10;
+  }
+
+  .hero-actions app-mobile-menu {
+    margin-left: auto;
   }
 
   .preview-grid {

@@ -1,8 +1,8 @@
 <div class="upload-shell">
   <header class="upload-hero">
     <div class="hero-actions">
-      <button type="button" class="back-btn hero-action" (click)="goBack()">
-        Retour
+      <button type="button" class="back-btn back-btn--icon hero-action" (click)="goBack()" aria-label="Retour">
+        &#8592;
       </button>
       <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
         Se deconnecter
@@ -17,7 +17,6 @@
     </div>
 
     <div class="hero-copy">
-      <img class="app-brand-logo app-brand-logo--hero" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
       <p class="eyebrow">Mon album</p>
       <h1>Ajouter</h1>
       <p>{{ currentGuest }}</p>

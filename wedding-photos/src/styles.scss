@@ -33,13 +33,16 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--bg-ivory);
+  width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
 }
 
 body {
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--page-glow);
-  overflow-x: hidden;
+  overflow-x: clip;
   position: relative;
 }
 
@@ -88,6 +91,8 @@ a {
 app-root {
   display: block;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .app-brand-logo {
@@ -112,6 +117,11 @@ app-root {
 }
 
 @media (max-width: 720px) {
+  body::before,
+  body::after {
+    display: none;
+  }
+
   .app-brand-logo--login {
     width: min(11rem, 62vw);
     margin-bottom: 12px;

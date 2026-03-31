@@ -1,0 +1,24 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1 1 auto;
+}
+
+.app-footer {
+  flex: 0 0 auto;
+  padding: 20px 16px calc(env(safe-area-inset-bottom) + 20px);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.app-footer__logo {
+  width: min(8rem, 36vw);
+  height: auto;
+  object-fit: contain;
+  opacity: 0.9;
+}
