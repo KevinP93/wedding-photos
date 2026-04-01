@@ -24,6 +24,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   isUploading = false;
   isDragging = false;
   uploadProgress = 0;
+  selectionError = '';
   currentUserId = '';
   currentGuest = '';
   currentUsername = '';
@@ -70,10 +71,24 @@ export class UploadComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const nextEntries: SelectedMedia[] = files.map(file => ({
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const rejectedCount = files.length - imageFiles.length;
+
+    this.selectionError = rejectedCount > 0
+      ? 'Seules les photos sont autorisees.'
+      : '';
+
+    if (imageFiles.length === 0) {
+      if (event.target instanceof HTMLInputElement) {
+        event.target.value = '';
+      }
+      return;
+    }
+
+    const nextEntries: SelectedMedia[] = imageFiles.map(file => ({
       file,
       previewUrl: URL.createObjectURL(file),
-      type: file.type.startsWith('video/') ? 'video' : 'image'
+      type: 'image'
     }));
 
     this.selectedFiles = [...this.selectedFiles, ...nextEntries];
@@ -122,6 +137,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     this.selectedFiles = [];
+    this.selectionError = '';
   }
 
   async uploadFiles(): Promise<void> {
@@ -152,6 +168,8 @@ export class UploadComponent implements OnInit, OnDestroy {
           const photo: Photo = {
             id: '',
             url: result.secure_url,
+            gridUrl: '',
+            viewerUrl: '',
             publicId: result.public_id,
             uploadedBy: this.currentGuest,
             uploadedByUsername: this.currentUsername,

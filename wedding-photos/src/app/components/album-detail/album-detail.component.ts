@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlbumService, Album, Photo } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
+import { PwaService } from '../../services/pwa.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
@@ -25,14 +26,19 @@ export class AlbumDetailComponent implements OnInit {
   adminMessage = '';
   viewerHint = '';
   selectedIndex = -1;
+  viewerHeartPhotoId = '';
   private touchStartX = 0;
   private touchStartY = 0;
+  private lastTapTimestamp = 0;
+  private lastTapPhotoId = '';
+  private readonly preservedGridPhotoIds = new Set<string>();
 
   constructor(
     private albumService: AlbumService,
     private router: Router,
     private route: ActivatedRoute,
     private cloudinaryService: CloudinaryService,
+    private pwaService: PwaService,
     private supabaseService: SupabaseService
   ) {}
 
@@ -135,11 +141,36 @@ export class AlbumDetailComponent implements OnInit {
 
   viewPhoto(index: number): void {
     this.viewerHint = '';
+    this.viewerHeartPhotoId = '';
     this.selectedIndex = index;
+  }
+
+  onGridImageLoad(photoId: string, event: Event): void {
+    const image = event.target as HTMLImageElement | null;
+    if (!image?.naturalWidth || !image.naturalHeight) {
+      return;
+    }
+
+    const aspectRatio = image.naturalWidth / image.naturalHeight;
+    const shouldPreserve = aspectRatio <= 0.82 || aspectRatio >= 1.42;
+
+    if (shouldPreserve) {
+      this.preservedGridPhotoIds.add(photoId);
+      return;
+    }
+
+    this.preservedGridPhotoIds.delete(photoId);
+  }
+
+  shouldPreserveGridPhoto(photo: Photo): boolean {
+    return this.preservedGridPhotoIds.has(photo.id);
   }
 
   closeViewer(): void {
     this.viewerHint = '';
+    this.viewerHeartPhotoId = '';
+    this.lastTapTimestamp = 0;
+    this.lastTapPhotoId = '';
     this.selectedIndex = -1;
   }
 
@@ -149,6 +180,9 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     this.viewerHint = '';
+    this.viewerHeartPhotoId = '';
+    this.lastTapTimestamp = 0;
+    this.lastTapPhotoId = '';
     this.selectedIndex = (this.selectedIndex - 1 + this.album.photos.length) % this.album.photos.length;
   }
 
@@ -158,6 +192,9 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     this.viewerHint = '';
+    this.viewerHeartPhotoId = '';
+    this.lastTapTimestamp = 0;
+    this.lastTapPhotoId = '';
     this.selectedIndex = (this.selectedIndex + 1) % this.album.photos.length;
   }
 
@@ -177,7 +214,7 @@ export class AlbumDetailComponent implements OnInit {
     this.touchStartY = touch.clientY;
   }
 
-  onViewerTouchEnd(event: TouchEvent): void {
+  onViewerTouchEnd(event: TouchEvent, photo: Photo): void {
     const touch = event.changedTouches[0];
     if (!touch || !this.selectedPhoto) {
       return;
@@ -189,8 +226,14 @@ export class AlbumDetailComponent implements OnInit {
     const verticalDistance = Math.abs(deltaY);
 
     if (horizontalDistance < 48 || horizontalDistance <= verticalDistance) {
+      if (horizontalDistance <= 14 && verticalDistance <= 14) {
+        this.handleViewerTap(photo);
+      }
       return;
     }
+
+    this.lastTapTimestamp = 0;
+    this.lastTapPhotoId = '';
 
     if (deltaX < 0) {
       this.showNext();
@@ -198,6 +241,10 @@ export class AlbumDetailComponent implements OnInit {
     }
 
     this.showPrevious();
+  }
+
+  onViewerDoubleClick(photo: Photo): void {
+    void this.likeFromViewerGesture(photo);
   }
 
   async deletePhoto(photo: Photo, event?: Event): Promise<void> {
@@ -267,13 +314,6 @@ export class AlbumDetailComponent implements OnInit {
     this.viewerHint = '';
 
     try {
-      await this.albumService.incrementDownloadCount(this.album.id, photo.id);
-      this.refreshAlbum();
-    } catch (error) {
-      console.error('Erreur lors de la mise a jour du compteur de telechargement:', error);
-    }
-
-    try {
       const downloadUrl = photo.publicId
         ? this.cloudinaryService.getDownloadUrl(photo.publicId, photo.type)
         : photo.url;
@@ -284,35 +324,34 @@ export class AlbumDetailComponent implements OnInit {
 
       const blob = await response.blob();
       const fileName = this.getDownloadName(photo, blob);
+      const file = new File([blob], fileName, {
+        type: blob.type || (photo.type === 'video' ? 'video/mp4' : 'image/jpeg')
+      });
 
-      if (this.shouldUseNativeShare(blob, fileName)) {
-        const file = new File([blob], fileName, {
-          type: blob.type || (photo.type === 'video' ? 'video/mp4' : 'image/jpeg')
-        });
-        const shareNavigator = navigator as Navigator & {
-          canShare?: (data?: ShareData) => boolean;
-        };
+      if (this.shouldUseNativeShare(file)) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: fileName
+          });
 
-        if (shareNavigator.canShare?.({ files: [file] })) {
-          try {
-            await navigator.share({
-              files: [file],
-              title: fileName
-            });
-
-            this.viewerHint = photo.type === 'video'
-              ? 'Utilisez Enregistrer la video dans la feuille de partage iPhone.'
-              : 'Utilisez Enregistrer l image dans la feuille de partage iPhone.';
-            this.showDownloadAnimation(photo.id);
+          await this.recordSuccessfulDownload(photo);
+          this.viewerHint = this.getNativeShareHint(photo.type);
+          this.showDownloadAnimation(photo.id);
+          return;
+        } catch (shareError) {
+          if (shareError instanceof DOMException && shareError.name === 'AbortError') {
             return;
-          } catch (shareError) {
-            if (shareError instanceof DOMException && shareError.name === 'AbortError') {
-              return;
-            }
-
-            console.error('Partage natif impossible, fallback telechargement.', shareError);
           }
+
+          console.error('Partage natif impossible, fallback mobile.', shareError);
         }
+      }
+
+      if (this.pwaService.isMobileDevice()) {
+        this.viewerHint = this.getMobileFallbackHint(photo.type);
+        window.open(photo.url, '_blank', 'noopener');
+        return;
       }
 
       const blobUrl = URL.createObjectURL(blob);
@@ -323,12 +362,12 @@ export class AlbumDetailComponent implements OnInit {
       link.click();
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      await this.recordSuccessfulDownload(photo);
     } catch (error) {
       console.error('Telechargement direct impossible, ouverture du media.', error);
-      this.viewerHint = photo.type === 'video'
-        ? 'Sur iPhone, utilisez Partager puis Enregistrer la video.'
-        : 'Sur iPhone, utilisez Partager puis Enregistrer l image.';
+      this.viewerHint = this.getMobileFallbackHint(photo.type);
       window.open(photo.url, '_blank', 'noopener');
+      return;
     }
 
     this.showDownloadAnimation(photo.id);
@@ -402,23 +441,79 @@ export class AlbumDetailComponent implements OnInit {
     return photo.type === 'video' ? 'mp4' : 'jpg';
   }
 
-  private shouldUseNativeShare(blob: Blob, fileName: string): boolean {
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIosDevice = /iphone|ipad|ipod/.test(userAgent)
-      || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+  getDownloadButtonLabel(): string {
+    return this.pwaService.isMobileDevice() ? 'Enregistrer' : 'Telecharger';
+  }
+
+  private shouldUseNativeShare(file: File): boolean {
     const shareNavigator = navigator as Navigator & {
       canShare?: (data?: ShareData) => boolean;
     };
 
-    if (!isIosDevice || typeof navigator.share !== 'function' || typeof File === 'undefined') {
+    if (!this.pwaService.isMobileDevice() || typeof navigator.share !== 'function') {
       return false;
     }
 
-    const file = new File([blob], fileName, {
-      type: blob.type || 'application/octet-stream'
-    });
-
     return Boolean(shareNavigator.canShare?.({ files: [file] }));
+  }
+
+  private async recordSuccessfulDownload(photo: Photo): Promise<void> {
+    if (!this.album) {
+      return;
+    }
+
+    try {
+      await this.albumService.incrementDownloadCount(this.album.id, photo.id);
+      this.refreshAlbum();
+    } catch (error) {
+      console.error('Erreur lors de la mise a jour du compteur de telechargement:', error);
+    }
+  }
+
+  private getNativeShareHint(type: 'image' | 'video'): string {
+    if (this.isIosDevice()) {
+      return type === 'video'
+        ? 'Dans la feuille de partage iPhone, utilisez Enregistrer la video.'
+        : 'Dans la feuille de partage iPhone, utilisez Enregistrer l image.';
+    }
+
+    if (this.isAndroidDevice()) {
+      return type === 'video'
+        ? 'Dans la feuille de partage Android, choisissez Enregistrer ou votre application video.'
+        : 'Dans la feuille de partage Android, choisissez Enregistrer ou votre application photo.';
+    }
+
+    return type === 'video'
+      ? 'Utilisez la feuille de partage pour enregistrer la video.'
+      : 'Utilisez la feuille de partage pour enregistrer l image.';
+  }
+
+  private getMobileFallbackHint(type: 'image' | 'video'): string {
+    if (this.isIosDevice()) {
+      return type === 'video'
+        ? 'La video va s ouvrir. Ensuite utilisez Partager puis Enregistrer la video.'
+        : 'L image va s ouvrir. Ensuite utilisez Partager puis Enregistrer l image.';
+    }
+
+    if (this.isAndroidDevice()) {
+      return type === 'video'
+        ? 'La video va s ouvrir. Ensuite utilisez le menu du navigateur ou Partager pour l enregistrer.'
+        : 'L image va s ouvrir. Ensuite utilisez le menu du navigateur ou Partager pour l enregistrer.';
+    }
+
+    return type === 'video'
+      ? 'Le fichier va s ouvrir. Ensuite utilisez le menu du navigateur pour l enregistrer.'
+      : 'L image va s ouvrir. Ensuite utilisez le menu du navigateur pour l enregistrer.';
+  }
+
+  private isIosDevice(): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /iphone|ipad|ipod/.test(userAgent)
+      || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+  }
+
+  private isAndroidDevice(): boolean {
+    return window.navigator.userAgent.toLowerCase().includes('android');
   }
 
   private showLikeAnimation(photoId: string): void {
@@ -443,6 +538,42 @@ export class AlbumDetailComponent implements OnInit {
     setTimeout(() => {
       element.classList.remove('download-animation');
     }, 600);
+  }
+
+  private handleViewerTap(photo: Photo): void {
+    const now = Date.now();
+    const isSamePhoto = this.lastTapPhotoId === photo.id;
+    const isDoubleTap = isSamePhoto && now - this.lastTapTimestamp <= 280;
+
+    this.lastTapTimestamp = now;
+    this.lastTapPhotoId = photo.id;
+
+    if (!isDoubleTap) {
+      return;
+    }
+
+    this.lastTapTimestamp = 0;
+    this.lastTapPhotoId = '';
+    void this.likeFromViewerGesture(photo);
+  }
+
+  private async likeFromViewerGesture(photo: Photo): Promise<void> {
+    if (this.isLiked(photo)) {
+      this.showViewerHeart(photo.id);
+      return;
+    }
+
+    await this.toggleLike(photo);
+    this.showViewerHeart(photo.id);
+  }
+
+  private showViewerHeart(photoId: string): void {
+    this.viewerHeartPhotoId = photoId;
+    setTimeout(() => {
+      if (this.viewerHeartPhotoId === photoId) {
+        this.viewerHeartPhotoId = '';
+      }
+    }, 720);
   }
 
   private clearSession(): void {

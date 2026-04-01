@@ -156,6 +156,16 @@
   gap: 10px;
 }
 
+.selection-error {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(183, 70, 70, 0.08);
+  border: 1px solid rgba(183, 70, 70, 0.14);
+  color: #9d4545;
+  font-size: 0.92rem;
+}
+
 .primary-btn {
   padding: 13px 20px;
   color: #fffaf7;

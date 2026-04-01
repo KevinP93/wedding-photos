@@ -6,6 +6,34 @@ import { environment } from '../../environments/environment';
   providedIn: 'root'
 })
 export class CloudinaryService {
+  getGalleryMediaUrl(publicId: string, resourceType: 'image' | 'video' = 'image', fallbackUrl = ''): string {
+    if (!environment.cloudinary?.cloudName || !publicId) {
+      return fallbackUrl;
+    }
+
+    return this.getDeliveryUrl(
+      publicId,
+      resourceType,
+      resourceType === 'video'
+        ? 'q_auto:good,vc_auto,w_640,h_640,c_limit'
+        : 'f_auto,q_auto:good,dpr_auto,w_640,h_640,c_limit'
+    );
+  }
+
+  getViewerMediaUrl(publicId: string, resourceType: 'image' | 'video' = 'image', fallbackUrl = ''): string {
+    if (!environment.cloudinary?.cloudName || !publicId) {
+      return fallbackUrl;
+    }
+
+    return this.getDeliveryUrl(
+      publicId,
+      resourceType,
+      resourceType === 'video'
+        ? 'q_auto:good,vc_auto,w_1280,h_1280,c_limit'
+        : 'f_auto,q_auto:good,dpr_auto,w_1600,h_1600,c_limit'
+    );
+  }
+
   async uploadFile(file: File, folder: string = 'wedding-photos'): Promise<any> {
     if (!environment.cloudinary?.cloudName || !environment.cloudinary?.uploadPreset) {
       throw new Error('Configuration Cloudinary manquante. Verifiez vos variables d\'environnement.');
@@ -95,5 +123,10 @@ export class CloudinaryService {
       .filter(Boolean)
       .map(segment => encodeURIComponent(segment))
       .join('/');
+  }
+
+  private getDeliveryUrl(publicId: string, resourceType: 'image' | 'video', transformation: string): string {
+    const transformationPath = transformation ? `${transformation}/` : '';
+    return `https://res.cloudinary.com/${environment.cloudinary.cloudName}/${resourceType}/upload/${transformationPath}${this.buildPublicIdPath(publicId)}`;
   }
 }

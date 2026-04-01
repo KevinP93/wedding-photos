@@ -23,6 +23,12 @@ interface AlbumRow {
   id: string;
 }
 
+const noOpLock = async <T>(
+  _name: string,
+  _acquireTimeout: number,
+  fn: () => Promise<T>
+): Promise<T> => await fn();
+
 @Injectable({
   providedIn: 'root'
 })
@@ -34,7 +40,15 @@ export class SupabaseService {
   constructor() {
     this.client = createClient(
       environment.supabase.url,
-      environment.supabase.publishableKey
+      environment.supabase.publishableKey,
+      {
+        auth: {
+          // This app is primarily used as a single-tab mobile PWA.
+          // Disabling Web Locks avoids intermittent Supabase auth deadlocks
+          // seen on some mobile browsers and installed PWAs.
+          lock: noOpLock
+        }
+      }
     );
   }
 

@@ -41,20 +41,29 @@
     <button
       type="button"
       class="media-card"
+      [class.media-card--preserve]="shouldPreserveGridPhoto(photo)"
       *ngFor="let photo of currentAlbum.photos; trackBy: trackByPhotoId; let index = index"
       [attr.data-photo-id]="photo.id"
       (click)="viewPhoto(index)"
     >
-      <img
-        *ngIf="photo.type === 'image'; else gridVideo"
-        [src]="photo.url"
-        [alt]="'Photo partagee par ' + currentAlbum.name"
-        loading="lazy"
-      />
+      <span class="media-card-media">
+        <img
+          *ngIf="photo.type === 'image'; else gridVideo"
+          [src]="shouldPreserveGridPhoto(photo) ? (photo.viewerUrl || photo.url) : (photo.gridUrl || photo.url)"
+          [alt]="'Photo partagee par ' + currentAlbum.name"
+          loading="lazy"
+          (load)="onGridImageLoad(photo.id, $event)"
+        />
 
-      <ng-template #gridVideo>
-        <video [src]="photo.url" muted playsinline preload="metadata"></video>
-      </ng-template>
+        <ng-template #gridVideo>
+          <video [src]="photo.gridUrl || photo.url" muted playsinline preload="metadata"></video>
+        </ng-template>
+      </span>
+
+      <span class="media-like-badge" *ngIf="getPhotoStats(photo).likes > 0">
+        <span aria-hidden="true">&#10084;</span>
+        <span>{{ getPhotoStats(photo).likes }}</span>
+      </span>
 
       <span class="media-video-indicator" *ngIf="photo.type === 'video'">▶</span>
     </button>
@@ -90,18 +99,27 @@
 
       <div
         class="viewer-media"
+        (dblclick)="onViewerDoubleClick(activePhoto)"
         (touchstart)="onViewerTouchStart($event)"
-        (touchend)="onViewerTouchEnd($event)"
+        (touchend)="onViewerTouchEnd($event, activePhoto)"
       >
         <img
           *ngIf="activePhoto.type === 'image'; else viewerVideo"
-          [src]="activePhoto.url"
+          [src]="activePhoto.viewerUrl || activePhoto.url"
           [alt]="'Photo partagee par ' + activePhoto.uploadedBy"
         />
 
         <ng-template #viewerVideo>
-          <video [src]="activePhoto.url" controls autoplay playsinline preload="metadata"></video>
+          <video [src]="activePhoto.viewerUrl || activePhoto.url" controls autoplay playsinline preload="metadata"></video>
         </ng-template>
+
+        <div
+          class="viewer-like-burst"
+          [class.viewer-like-burst--visible]="viewerHeartPhotoId === activePhoto.id"
+          aria-hidden="true"
+        >
+          &#10084;
+        </div>
       </div>
 
       <button
@@ -130,7 +148,10 @@
 
         <div class="viewer-side">
         <div class="viewer-stats">
-          <span>{{ getPhotoStats(activePhoto).likes }} j'aime</span>
+          <span class="viewer-like-badge" *ngIf="getPhotoStats(activePhoto).likes > 0">
+            <span aria-hidden="true">&#10084;</span>
+            <span>{{ getPhotoStats(activePhoto).likes }}</span>
+          </span>
           <span>{{ getPhotoStats(activePhoto).downloads }} sauvegardes</span>
         </div>
 
@@ -149,7 +170,7 @@
             </button>
 
             <button type="button" class="primary-btn download-btn" (click)="downloadPhoto(activePhoto)">
-              Enregistrer
+              {{ getDownloadButtonLabel() }}
             </button>
 
             <button *ngIf="canDeleteFromCurrentAlbum()" type="button" class="danger-btn" (click)="deletePhoto(activePhoto)">

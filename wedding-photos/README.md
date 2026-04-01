@@ -1,138 +1,139 @@
-# 📸 Wedding Photos - Application de Partage de Photos de Mariage
+# Wedding Photos
 
-Une application Angular moderne permettant aux invités d'un mariage de partager leurs photos et vidéos dans des albums personnalisés.
+Application Angular de partage de photos de mariage.
 
-## ✨ Fonctionnalités
+Chaque invite possede un compte, un album unique, peut ajouter ses photos, consulter celles des autres invites et les enregistrer sur son telephone. L'application est optimisee pour un usage mobile et peut etre installee en PWA.
 
-- **Authentification simple** : Les invités entrent simplement leur nom
-- **Albums personnalisés** : Chaque invité a son propre album automatiquement créé
-- **Upload de photos et vidéos** : Interface drag & drop intuitive
-- **Galerie partagée** : Visualisation de tous les albums des invités
-- **Stockage cloud** : Intégration avec Cloudinary pour le stockage des fichiers
-- **Design responsive** : Interface moderne et adaptative
+## Stack
 
-## 🚀 Démarrage rapide
+- Angular 17
+- Supabase Auth + Postgres
+- Cloudinary pour les photos
+- Vercel pour le deploiement
 
-### Prérequis
-- Node.js (version 20.10.0 ou supérieure)
-- npm ou yarn
+## Fonctionnalites
 
-### Installation
+- inscription / connexion par `username + mot de passe`
+- `1 utilisateur = 1 album`
+- galerie partagee des albums invites
+- suppression de ses propres photos
+- admin capable de vider un album
+- photo de profil avec avatar par defaut
+- PWA installable sur iPhone et Android
+- enregistrement mobile via partage natif quand disponible
+
+## Important
+
+- les videos ne sont pas autorisees
+- les albums vides n'apparaissent pas aux autres invites
+- l'admin `vide` un album: les photos sont supprimees, mais l'album utilisateur reste cree
+
+## Installation locale
+
+Prerequis:
+
+- Node.js 20+
+- npm
+
+Installation:
+
 ```bash
-# Cloner le projet
-git clone <votre-repo>
-cd wedding-photos
-
-# Installer les dépendances
 npm install
-
-# Configurer Cloudinary (voir CLOUDINARY_SETUP.md)
-# Remplacer les clés dans src/app/services/cloudinary.service.ts
-
-# Démarrer l'application
-ng serve
+npm start
 ```
 
-L'application sera accessible sur `http://localhost:4200`
+Application disponible sur `http://localhost:4200`.
 
-## 📱 Utilisation
+## Configuration
 
-1. **Connexion** : L'invité entre son nom
-2. **Album automatique** : Un album est créé automatiquement pour cet invité
-3. **Upload** : L'invité peut ajouter des photos/vidéos via drag & drop
-4. **Galerie** : Tous les invités peuvent voir les albums de chacun
+Les cles frontend sont actuellement dans:
 
-## 🛠️ Configuration
+- [environment.ts](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/src/environments/environment.ts)
+- [environment.prod.ts](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/src/environments/environment.prod.ts)
 
-### Cloudinary (Recommandé)
-- Plan gratuit : 25 GB de stockage + 25 GB de bande passante/mois
-- Optimisation automatique des images
-- CDN global pour des performances optimales
+Configuration utilisee:
 
-### Vercel (Déploiement)
-- Déploiement gratuit pour les sites statiques
-- 100 GB de bande passante/mois
-- Déploiement automatique depuis Git
+- `SUPABASE_URL`: `https://pipbutmzxzhcetlyxfxn.supabase.co`
+- `SUPABASE_PUBLISHABLE_KEY`: cle publishable Supabase
+- `CLOUDINARY_CLOUD_NAME`: `dq8x5tkzw`
+- `CLOUDINARY_UPLOAD_PRESET`: `wedding-photos-upload`
 
-## 📁 Structure du projet
+## Base Supabase
 
+Le schema SQL principal est dans:
+
+- [wedding_photos_schema.sql](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/supabase/wedding_photos_schema.sql)
+
+A executer dans `Supabase > SQL Editor`.
+
+## Creation de l'admin
+
+Le script est dans:
+
+- [create-admin.mjs](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/scripts/create-admin.mjs)
+
+Commande:
+
+```powershell
+$env:SUPABASE_SERVICE_ROLE_KEY="TA_SERVICE_ROLE_KEY"
+npm run create:admin
 ```
-src/
-├── app/
-│   ├── components/
-│   │   ├── login/          # Page de connexion
-│   │   ├── gallery/        # Galerie des albums
-│   │   └── upload/         # Interface d'upload
-│   ├── services/
-│   │   ├── cloudinary.service.ts  # Gestion des uploads
-│   │   └── album.service.ts       # Gestion des albums
-│   └── app.routes.ts       # Configuration des routes
-```
 
-## 🔧 Technologies utilisées
+Par defaut, il cree:
 
-- **Angular 17** : Framework principal
-- **TypeScript** : Langage de programmation
-- **SCSS** : Préprocesseur CSS
-- **Cloudinary** : Stockage et optimisation des médias
-- **RxJS** : Gestion des observables
-- **LocalStorage** : Persistance des données (temporaire)
+- `username`: `kevadmin`
+- `display_name`: `kevadmin`
+- `password`: `kevadmin`
 
-## 📊 Limites et considérations
+## Deploiement Vercel
 
-### Cloudinary (Plan gratuit)
-- **Stockage** : 25 GB
-- **Bande passante** : 25 GB/mois
-- **Uploads** : 500/mois
-- **Transformations** : 25 000/mois
+Le projet est configure pour Vercel avec:
 
-### Vercel (Plan gratuit)
-- **Bande passante** : 100 GB/mois
-- **Fonctions serverless** : 100 GB-heures/mois
+- [vercel.json](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/vercel.json)
 
-### Recommandations
-- Pour un mariage avec ~50 invités et ~1000 photos : Cloudinary gratuit suffit
-- Pour plus d'invités, considérez un plan payant Cloudinary
-- Les données sont stockées localement (localStorage) - considérez une base de données pour la production
+Reglages recommandes:
 
-## 🚀 Déploiement sur Vercel
+- `Framework Preset`: `Angular` ou `Other`
+- `Root Directory`: `wedding-photos`
 
-1. **Préparer l'application** :
+Variables d'environnement Vercel:
+
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+
+Si un override manuel est necessaire:
+
+- `Build Command`: `npm run vercel-build`
+- `Output Directory`: `dist/wedding-photos/browser`
+
+## Scripts utiles
+
 ```bash
-ng build --configuration production
+npm start
+npm run build
+npm test
+npm run create:admin
+npm run migrate:login-emails
 ```
 
-2. **Installer Vercel CLI** :
+## Notes techniques
+
+- Supabase Auth peut lever des erreurs de type `Navigator LockManager` sur certains navigateurs mobiles / PWA. Le client utilise ici un `no-op lock` car l'application est pensee principalement pour un usage mobile mono-onglet.
+- Les photos affichees dans la galerie et la visionneuse utilisent des URLs Cloudinary optimisees pour accelerer le chargement.
+- Le telechargement conserve la qualite d'origine.
+
+## Limites du mode PWA
+
+- une PWA ne peut pas garantir l'ecriture directe en pellicule comme une vraie app native
+- sur mobile, l'application utilise le meilleur flux disponible: partage natif si possible, sinon ouverture guidee de l'image
+
+## Verification
+
+Build de reference:
+
 ```bash
-npm i -g vercel
+npm run build
 ```
 
-3. **Déployer** :
-```bash
-vercel
-```
-
-4. **Configuration** :
-   - Framework : Angular
-   - Build Command : `ng build --configuration production`
-   - Output Directory : `dist/wedding-photos`
-
-## 🔒 Sécurité
-
-⚠️ **Important** : Cette application est conçue pour un usage privé (mariage). Pour un usage public :
-- Implémentez une authentification robuste
-- Ajoutez une validation côté serveur
-- Utilisez HTTPS
-- Limitez la taille des fichiers uploadés
-
-## 📝 Licence
-
-Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.
-
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
-
-## 📞 Support
-
-Pour toute question ou problème, ouvrez une issue sur GitHub.
+Le projet build correctement. Il reste un warning non bloquant sur le budget SCSS de l'ecran de detail d'album.

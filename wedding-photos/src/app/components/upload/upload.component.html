@@ -29,7 +29,7 @@
       type="file"
       hidden
       multiple
-      accept="image/*,video/*"
+      accept="image/*"
       (change)="onFileSelected($event)"
     />
 
@@ -45,8 +45,12 @@
       <span class="drop-zone__ornament"></span>
       <span class="drop-zone__eyebrow">Ajouter</span>
       <strong>Choisir dans la galerie</strong>
-      <p>Photos et videos de votre telephone.</p>
+      <p>Photos de votre telephone.</p>
     </button>
+
+    <div class="selection-error" *ngIf="selectionError">
+      {{ selectionError }}
+    </div>
 
     <div class="selection-head" *ngIf="selectedFiles.length > 0">
       <div>

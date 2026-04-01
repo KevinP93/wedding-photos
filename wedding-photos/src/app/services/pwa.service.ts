@@ -7,6 +7,8 @@ type DeferredInstallPrompt = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
+export type InstallDevice = 'iphone' | 'samsung' | 'android' | 'other';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -33,6 +35,12 @@ export class PwaService {
     return this.promptEvent !== null;
   }
 
+  isMobileDevice(): boolean {
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    return /android|iphone|ipad|ipod/.test(userAgent)
+      || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+  }
+
   isStandalone(): boolean {
     return window.matchMedia('(display-mode: standalone)').matches
       || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
@@ -56,6 +64,27 @@ export class PwaService {
 
   shouldShowIosInstallHint(): boolean {
     return this.isIosSafari() && !this.isStandalone() && !this.hasDismissedInstallPrompt();
+  }
+
+  shouldShowInstallGuide(): boolean {
+    return this.isMobileDevice() && !this.isStandalone() && !this.hasDismissedInstallPrompt();
+  }
+
+  detectInstallDevice(): InstallDevice {
+    if (this.isIosSafari()) {
+      return 'iphone';
+    }
+
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    if (/sm-[a-z0-9]+|samsung/.test(userAgent)) {
+      return 'samsung';
+    }
+
+    if (userAgent.includes('android')) {
+      return 'android';
+    }
+
+    return 'other';
   }
 
   dismissInstallPrompt(): void {

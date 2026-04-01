@@ -1,9 +1,11 @@
 .login-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 32px 20px;
   position: relative;
+  overflow: hidden;
 }
 
 .login-decor {
@@ -59,6 +61,7 @@
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(16px);
   overflow: hidden;
+  max-height: calc(100dvh - 64px);
 }
 
 .login-card::before {
@@ -245,14 +248,26 @@ label {
 
 @media (max-width: 640px) {
   .login-shell {
-    align-items: start;
-    padding: calc(env(safe-area-inset-top) + 12px) 14px 24px;
+    min-height: 100dvh;
+    align-items: center;
+    padding: calc(env(safe-area-inset-top) + 8px) 12px calc(env(safe-area-inset-bottom) + 8px);
   }
 
   .login-card {
     width: 100%;
-    padding: 26px 18px;
-    border-radius: 28px;
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+    padding: 18px 16px;
+    border-radius: 24px;
+  }
+
+  .login-card::before {
+    inset: 0.7rem;
+    border-radius: 18px;
+  }
+
+  .app-brand-logo--login {
+    width: min(7.5rem, 33vw);
+    margin-bottom: 8px;
   }
 
   .eyebrow,
@@ -261,11 +276,112 @@ label {
     text-align: center;
   }
 
+  .eyebrow {
+    margin-bottom: 6px;
+    font-size: 0.7rem;
+    letter-spacing: 0.16rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 8vw, 2.6rem);
+  }
+
+  .subtitle {
+    margin-top: 8px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+
+  .mode-switch {
+    margin-top: 16px;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .mode-btn {
+    padding: 11px 12px;
+    font-size: 0.9rem;
+  }
+
+  .login-form {
+    margin-top: 14px;
+    gap: 8px;
+  }
+
+  label {
+    font-size: 0.8rem;
+    letter-spacing: 0.02rem;
+  }
+
+  .form-input {
+    padding: 13px 14px;
+    border-radius: 15px;
+    font-size: 0.95rem;
+  }
+
+  .helper-note {
+    margin: 0;
+    font-size: 0.82rem;
+  }
+
+  .error-message,
+  .info-message {
+    padding: 10px 12px;
+    border-radius: 14px;
+    font-size: 0.84rem;
+  }
+
+  .submit-btn {
+    margin-top: 2px;
+    padding: 13px 18px;
+    font-size: 0.95rem;
+  }
+
   .mode-switch {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .promise-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 760px) {
+  .decor-orb--left,
+  .decor-orb--right,
+  .decor-ring {
+    display: none;
+  }
+
+  .login-shell {
+    padding: calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 6px);
+  }
+
+  .login-card {
+    padding: 16px 14px;
+  }
+
+  .app-brand-logo--login {
+    width: min(6.4rem, 28vw);
+    margin-bottom: 6px;
+  }
+
+  .subtitle {
+    margin-top: 6px;
+    font-size: 0.82rem;
+    line-height: 1.32;
+  }
+
+  .mode-switch {
+    margin-top: 12px;
+  }
+
+  .login-form {
+    margin-top: 12px;
+    gap: 7px;
+  }
+
+  .form-input {
+    padding: 12px 13px;
   }
 }

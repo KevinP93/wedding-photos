@@ -1,10 +1,13 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { SupabaseService } from './supabase.service';
+import { CloudinaryService } from './cloudinary.service';
 
 export interface Photo {
   id: string;
   url: string;
+  gridUrl: string;
+  viewerUrl: string;
   publicId: string;
   uploadedBy: string;
   uploadedByUsername: string;
@@ -19,6 +22,7 @@ export interface Album {
   id: string;
   name: string;
   ownerUsername: string;
+  ownerRole: 'guest' | 'admin';
   avatarUrl: string;
   photos: Photo[];
   createdAt: Date | string;
@@ -33,7 +37,10 @@ export class AlbumService {
 
   public albums$ = this.albumsSubject.asObservable();
 
-  constructor(private supabaseService: SupabaseService) {}
+  constructor(
+    private supabaseService: SupabaseService,
+    private cloudinaryService: CloudinaryService
+  ) {}
 
   async ready(forceRefresh = false): Promise<void> {
     if (forceRefresh || !this.initializationPromise) {
@@ -225,12 +232,15 @@ export class AlbumService {
       id: row.id,
       name: owner.display_name || 'Invite',
       ownerUsername: owner.username || '',
+      ownerRole: owner.role === 'admin' ? 'admin' : 'guest',
       avatarUrl: owner.avatar_url || '',
       createdAt: this.toDate(row.created_at).toISOString(),
       photos: (row.photos ?? [])
-        .map((photo: any) => ({
+        .map((photo: any) => this.hydratePhoto({
           id: photo.id,
           url: photo.media_url,
+          gridUrl: '',
+          viewerUrl: '',
           publicId: photo.cloudinary_public_id,
           uploadedBy: photo.uploader?.display_name || owner.display_name || 'Invite',
           uploadedByUsername: photo.uploader?.username || '',
@@ -264,6 +274,7 @@ export class AlbumService {
       ...album,
       name: album.name.trim(),
       ownerUsername: album.ownerUsername.trim(),
+      ownerRole: album.ownerRole === 'admin' ? 'admin' : 'guest',
       avatarUrl: album.avatarUrl || '',
       createdAt: this.toDate(album.createdAt).toISOString(),
       photos: album.photos.map(photo => this.hydratePhoto(photo))
@@ -274,6 +285,8 @@ export class AlbumService {
     return {
       id: photo.id,
       url: photo.url,
+      gridUrl: this.buildGridUrl(photo.publicId || '', photo.type, photo.url),
+      viewerUrl: this.buildViewerUrl(photo.publicId || '', photo.type, photo.url),
       publicId: photo.publicId || '',
       uploadedBy: photo.uploadedBy,
       uploadedByUsername: photo.uploadedByUsername || '',
@@ -287,6 +300,14 @@ export class AlbumService {
         ? Number(photo.downloadCount)
         : 0
     };
+  }
+
+  private buildGridUrl(publicId: string, type: 'image' | 'video', fallbackUrl: string): string {
+    return this.cloudinaryService.getGalleryMediaUrl(publicId, type, fallbackUrl);
+  }
+
+  private buildViewerUrl(publicId: string, type: 'image' | 'video', fallbackUrl: string): string {
+    return this.cloudinaryService.getViewerMediaUrl(publicId, type, fallbackUrl);
   }
 
   private normalizeValue(value: string): string {
