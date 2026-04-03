@@ -11,7 +11,7 @@
     <h1>Photos du mariage</h1>
     <p class="subtitle">Connectez-vous pour retrouver votre album.</p>
 
-    <div class="mode-switch" role="tablist" aria-label="Connexion ou creation de compte">
+    <div class="mode-switch" role="tablist" aria-label="Connexion ou création de compte">
       <button
         type="button"
         class="mode-btn"
@@ -26,13 +26,13 @@
         [class.mode-btn--active]="mode === 'signup'"
         (click)="setMode('signup')"
       >
-        Creer un compte
+        Créer un compte
       </button>
     </div>
 
     <form (ngSubmit)="onSubmit()" class="login-form">
       <ng-container *ngIf="mode === 'signup'">
-        <label for="displayName">Nom affiche dans la galerie</label>
+        <label for="displayName">Nom affiché dans la galerie</label>
         <input
           id="displayName"
           type="text"
@@ -67,7 +67,7 @@
         type="password"
         [(ngModel)]="password"
         name="password"
-        placeholder="Au moins 6 caracteres"
+        placeholder="Au moins 6 caractères"
         autocomplete="{{ mode === 'signup' ? 'new-password' : 'current-password' }}"
         required
         class="form-input"
@@ -100,7 +100,7 @@
         class="submit-btn"
         [disabled]="isLoading || !username.trim() || !password.trim() || (mode === 'signup' && (!displayName.trim() || !confirmPassword.trim()))"
       >
-        {{ isLoading ? 'Veuillez patienter...' : (mode === 'signup' ? 'Creer mon album' : 'Ouvrir mon album') }}
+        {{ isLoading ? 'Veuillez patienter...' : (mode === 'signup' ? 'Créer mon album' : 'Ouvrir mon album') }}
       </button>
     </form>
   </section>

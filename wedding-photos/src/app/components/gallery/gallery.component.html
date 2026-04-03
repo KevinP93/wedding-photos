@@ -22,7 +22,7 @@
         {{ isEditingProfile ? 'Fermer' : 'Mon profil' }}
       </button>
       <button class="secondary-btn hero-action hero-action--desktop" (click)="logout()">
-        Se deconnecter
+        Se déconnecter
       </button>
       <app-mobile-menu
         [currentGuest]="currentGuest"
@@ -54,13 +54,13 @@
             Choisir une photo
           </button>
           <button type="button" class="secondary-btn" (click)="resetProfileImage()">
-            Avatar par defaut
+            Avatar par défaut
           </button>
         </div>
       </div>
 
       <div class="profile-form">
-        <label for="profileDisplayName">Nom affiche</label>
+        <label for="profileDisplayName">Nom affiché</label>
         <input
           id="profileDisplayName"
           type="text"
@@ -108,6 +108,160 @@
     {{ adminMessage }}
   </div>
 
+  <section class="section-block">
+    <div class="section-heading">
+      <div>
+        <h2>Les invités</h2>
+      </div>
+      <p class="section-note" *ngIf="otherAlbums.length > 0">
+        Recherchez un album rapidement.
+      </p>
+    </div>
+
+    <div class="gallery-toolbar" *ngIf="otherAlbums.length > 0">
+      <label class="search-field" for="albumSearch">
+        <span class="search-shell">
+          <input
+            id="albumSearch"
+            type="search"
+            class="search-input"
+            aria-label="Rechercher un invité"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="onSearchChange()"
+            placeholder="Rechercher un invité"
+          />
+          <button
+            *ngIf="hasActiveSearch()"
+            type="button"
+            class="clear-search-btn clear-search-btn--inline"
+            (click)="searchQuery = ''; onSearchChange()"
+          >
+            Effacer
+          </button>
+        </span>
+      </label>
+
+      <div class="gallery-toolbar-meta">
+        <span class="result-pill">{{ getSearchResultLabel() }}</span>
+      </div>
+    </div>
+
+    <div class="album-list" *ngIf="visibleOtherAlbums.length > 0; else galleryEmpty">
+      <article
+        class="album-card"
+        [class.album-card--featured]="isFeaturedAlbum(album)"
+        *ngFor="let album of visibleOtherAlbums; trackBy: trackByAlbumId"
+        (click)="viewAlbum(album)"
+      >
+        <div class="album-copy">
+          <div class="album-title-row">
+            <div class="album-identity">
+              <img
+                class="album-avatar"
+                [src]="getAvatarUrl(album.avatarUrl, album.name, album.ownerUsername)"
+                [alt]="'Photo de profil de ' + album.name"
+              />
+
+              <div>
+                <p class="album-kicker">
+                  {{ isFeaturedAlbum(album) ? 'Album le plus aimé' : 'Invité' }}
+                </p>
+                <h3>{{ album.name }}</h3>
+              </div>
+            </div>
+
+            <div class="album-actions">
+              <span class="photo-count">{{ getPhotoCount(album) }} media</span>
+              <span class="album-like-pill" *ngIf="getAlbumLikeCount(album) > 0">
+                <span aria-hidden="true">&#10084;</span>
+                <span>{{ getAlbumLikeCount(album) }}</span>
+              </span>
+              <button
+                *ngIf="isAdmin"
+                type="button"
+                class="delete-album-btn"
+                (click)="deleteAlbum(album, $event)"
+              >
+                Vider
+              </button>
+            </div>
+          </div>
+
+          <div class="album-footer">
+            <span>Ouvrir</span>
+            <span class="album-date">Mis à jour le {{ getAlbumMomentLabel(album) }}</span>
+          </div>
+        </div>
+
+        <div class="album-preview" *ngIf="album.photos.length > 0; else guestEmpty">
+          <div class="preview-grid">
+            <div
+              class="preview-tile"
+              *ngFor="let photo of getPreviewPhotos(album); trackBy: trackByPhotoId; let index = index"
+              [class.preview-tile--hero]="index === 0"
+            >
+              <img
+                *ngIf="photo.type === 'image'; else guestVideo"
+                [src]="photo.gridUrl || photo.url"
+                [alt]="'Photo partagee par ' + album.name"
+                loading="lazy"
+              />
+              <ng-template #guestVideo>
+                <video [src]="photo.gridUrl || photo.url" muted playsinline autoplay loop preload="metadata"></video>
+              </ng-template>
+              <span class="preview-badge">{{ photo.type === 'video' ? 'Video' : 'Photo' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <ng-template #guestEmpty>
+          <div class="empty-preview empty-preview--soft">
+            <h4>Album prêt</h4>
+            <p>{{ album.name }} n'a rien ajouté pour le moment.</p>
+          </div>
+        </ng-template>
+      </article>
+    </div>
+
+    <div class="pagination-bar" *ngIf="totalPages > 1">
+      <button
+        type="button"
+        class="pagination-btn"
+        (click)="goToPreviousPage()"
+        [disabled]="currentPage === 1"
+      >
+        Precedent
+      </button>
+
+      <p class="pagination-label">Page {{ currentPage }} / {{ totalPages }}</p>
+
+      <button
+        type="button"
+        class="pagination-btn"
+        (click)="goToNextPage()"
+        [disabled]="currentPage === totalPages"
+      >
+        Suivant
+      </button>
+    </div>
+
+    <ng-template #galleryEmpty>
+      <div class="empty-state" *ngIf="otherAlbums.length > 0; else noAlbums">
+        <p class="empty-state__eyebrow">Recherche</p>
+        <h3>Aucun album trouvé</h3>
+        <p>Essayez un autre nom pour retrouver un invité.</p>
+      </div>
+    </ng-template>
+
+    <ng-template #noAlbums>
+      <div class="empty-state">
+        <p class="empty-state__eyebrow">Galerie</p>
+        <h3>Les albums apparaîtront ici</h3>
+        <p>Les albums des invités s'affichent dès qu'ils ont ajouté leurs premières photos.</p>
+      </div>
+    </ng-template>
+  </section>
+
   <section class="section-block" *ngIf="userAlbum as currentAlbum">
     <div class="section-heading">
       <div>
@@ -132,7 +286,7 @@
 
             <div>
               <p class="album-kicker">
-                {{ isFeaturedAlbum(currentAlbum) ? 'Album le plus aime' : 'Album personnel' }}
+                {{ isFeaturedAlbum(currentAlbum) ? 'Album le plus aimé' : 'Album personnel' }}
               </p>
               <h3>{{ currentAlbum.name }}</h3>
             </div>
@@ -185,171 +339,10 @@
       <ng-template #ownerEmpty>
         <div class="empty-preview">
           <span class="empty-ornament">+</span>
-          <h4>Votre album est pret</h4>
+          <h4>Votre album est prêt</h4>
           <p>Ajoutez vos photos.</p>
         </div>
       </ng-template>
     </article>
-  </section>
-
-  <section class="section-block">
-    <div class="section-heading">
-      <div>
-        <p class="section-eyebrow">Galerie</p>
-        <h2>Les invites</h2>
-      </div>
-      <p class="section-note" *ngIf="otherAlbums.length > 0">
-        Retrouvez un album rapidement, sans faire defiler toute la galerie.
-      </p>
-    </div>
-
-    <div class="gallery-toolbar" *ngIf="otherAlbums.length > 0">
-      <div class="gallery-toolbar-copy">
-        <p class="gallery-toolbar-kicker">Recherche</p>
-        <p class="gallery-toolbar-text">Nom de l invite ou identifiant.</p>
-      </div>
-
-      <label class="search-field" for="albumSearch">
-        <span class="search-field-label">Rechercher un invite</span>
-        <span class="search-shell">
-          <span class="search-icon" aria-hidden="true">&#128269;</span>
-          <input
-            id="albumSearch"
-            type="search"
-            class="search-input"
-            [(ngModel)]="searchQuery"
-            (ngModelChange)="onSearchChange()"
-            placeholder="Exemple : Camille"
-          />
-          <button
-            *ngIf="hasActiveSearch()"
-            type="button"
-            class="clear-search-btn clear-search-btn--inline"
-            (click)="searchQuery = ''; onSearchChange()"
-          >
-            Effacer
-          </button>
-        </span>
-      </label>
-
-      <div class="gallery-toolbar-meta">
-        <span class="result-pill">{{ getSearchResultLabel() }}</span>
-      </div>
-    </div>
-
-    <div class="album-list" *ngIf="visibleOtherAlbums.length > 0; else galleryEmpty">
-      <article
-        class="album-card"
-        [class.album-card--featured]="isFeaturedAlbum(album)"
-        *ngFor="let album of visibleOtherAlbums; trackBy: trackByAlbumId"
-        (click)="viewAlbum(album)"
-      >
-        <div class="album-copy">
-          <div class="album-title-row">
-            <div class="album-identity">
-              <img
-                class="album-avatar"
-                [src]="getAvatarUrl(album.avatarUrl, album.name, album.ownerUsername)"
-                [alt]="'Photo de profil de ' + album.name"
-              />
-
-              <div>
-                <p class="album-kicker">
-                  {{ isFeaturedAlbum(album) ? 'Album le plus aime' : 'Invite' }}
-                </p>
-                <h3>{{ album.name }}</h3>
-              </div>
-            </div>
-
-            <div class="album-actions">
-              <span class="photo-count">{{ getPhotoCount(album) }} media</span>
-              <span class="album-like-pill" *ngIf="getAlbumLikeCount(album) > 0">
-                <span aria-hidden="true">&#10084;</span>
-                <span>{{ getAlbumLikeCount(album) }}</span>
-              </span>
-              <button
-                *ngIf="isAdmin"
-                type="button"
-                class="delete-album-btn"
-                (click)="deleteAlbum(album, $event)"
-              >
-                Vider
-              </button>
-            </div>
-          </div>
-
-          <div class="album-footer">
-            <span>Ouvrir</span>
-            <span class="album-date">Mis a jour le {{ getAlbumMomentLabel(album) }}</span>
-          </div>
-        </div>
-
-        <div class="album-preview" *ngIf="album.photos.length > 0; else guestEmpty">
-          <div class="preview-grid">
-            <div
-              class="preview-tile"
-              *ngFor="let photo of getPreviewPhotos(album); trackBy: trackByPhotoId; let index = index"
-              [class.preview-tile--hero]="index === 0"
-            >
-              <img
-                *ngIf="photo.type === 'image'; else guestVideo"
-                [src]="photo.gridUrl || photo.url"
-                [alt]="'Photo partagee par ' + album.name"
-                loading="lazy"
-              />
-              <ng-template #guestVideo>
-                <video [src]="photo.gridUrl || photo.url" muted playsinline autoplay loop preload="metadata"></video>
-              </ng-template>
-              <span class="preview-badge">{{ photo.type === 'video' ? 'Video' : 'Photo' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <ng-template #guestEmpty>
-          <div class="empty-preview empty-preview--soft">
-            <h4>Album pret</h4>
-            <p>{{ album.name }} n'a rien ajoute pour le moment.</p>
-          </div>
-        </ng-template>
-      </article>
-    </div>
-
-    <div class="pagination-bar" *ngIf="totalPages > 1">
-      <button
-        type="button"
-        class="pagination-btn"
-        (click)="goToPreviousPage()"
-        [disabled]="currentPage === 1"
-      >
-        Precedent
-      </button>
-
-      <p class="pagination-label">Page {{ currentPage }} / {{ totalPages }}</p>
-
-      <button
-        type="button"
-        class="pagination-btn"
-        (click)="goToNextPage()"
-        [disabled]="currentPage === totalPages"
-      >
-        Suivant
-      </button>
-    </div>
-
-    <ng-template #galleryEmpty>
-      <div class="empty-state" *ngIf="otherAlbums.length > 0; else noAlbums">
-        <p class="empty-state__eyebrow">Recherche</p>
-        <h3>Aucun album trouve</h3>
-        <p>Essayez un autre nom pour retrouver un invite.</p>
-      </div>
-    </ng-template>
-
-    <ng-template #noAlbums>
-      <div class="empty-state">
-        <p class="empty-state__eyebrow">Galerie</p>
-        <h3>Les albums apparaitront ici</h3>
-        <p>Les albums des invites s affichent des qu ils ont ajoute leurs premieres photos.</p>
-      </div>
-    </ng-template>
   </section>
 </div>

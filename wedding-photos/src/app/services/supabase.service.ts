@@ -65,7 +65,7 @@ export class SupabaseService {
     }
 
     if (!displayName) {
-      throw new Error('Entrez un nom a afficher dans la galerie.');
+      throw new Error('Entrez un nom à afficher dans la galerie.');
     }
 
     const { data, error } = await this.client.auth.signUp({
@@ -85,7 +85,7 @@ export class SupabaseService {
 
     if (!data.session) {
       throw new Error(
-        'La confirmation email Supabase doit etre desactivee pour cette application.'
+        'La confirmation email Supabase doit être désactivée pour cette application.'
       );
     }
 
@@ -155,7 +155,7 @@ export class SupabaseService {
     }
 
     if (!displayName) {
-      throw new Error('Entrez un nom a afficher.');
+      throw new Error('Entrez un nom à afficher.');
     }
 
     const attributes: {
@@ -351,6 +351,20 @@ export class SupabaseService {
     return Number.isFinite(Number(data)) ? Number(data) : 0;
   }
 
+  subscribeToGalleryChanges(onChange: () => void): () => void {
+    const channel = this.client
+      .channel(`gallery-sync-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'albums' }, () => onChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'photos' }, () => onChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'photo_likes' }, () => onChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => onChange())
+      .subscribe();
+
+    return () => {
+      void this.client.removeChannel(channel);
+    };
+  }
+
   normalizeUsername(value: string): string {
     return value
       .normalize('NFD')
@@ -461,11 +475,11 @@ export class SupabaseService {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('user already registered')) {
-      return new Error('Ce nom utilisateur existe deja.');
+      return new Error('Ce nom utilisateur existe déjà.');
     }
 
     if (normalized.includes('email address already in use')) {
-      return new Error('Ce nom utilisateur existe deja.');
+      return new Error('Ce nom utilisateur existe déjà.');
     }
 
     if (normalized.includes('invalid login credentials')) {
@@ -473,14 +487,14 @@ export class SupabaseService {
     }
 
     if (normalized.includes('password should be at least')) {
-      return new Error('Le mot de passe doit contenir au moins 6 caracteres.');
+      return new Error('Le mot de passe doit contenir au moins 6 caractères.');
     }
 
     if (normalized.includes('signup is disabled')) {
-      return new Error('Les inscriptions Supabase sont actuellement desactivees.');
+      return new Error('Les inscriptions Supabase sont actuellement désactivées.');
     }
 
-    return new Error(message || 'Operation Supabase impossible pour le moment.');
+    return new Error(message || 'Opération Supabase impossible pour le moment.');
   }
 
   private sleep(durationMs: number): Promise<void> {

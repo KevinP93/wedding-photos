@@ -56,7 +56,7 @@ export class LoginComponent implements OnInit {
     }
 
     if (this.mode === 'signup' && !trimmedDisplayName) {
-      this.errorMessage = 'Entrez le nom qui sera affiche dans la galerie.';
+      this.errorMessage = 'Entrez le nom qui sera affiché dans la galerie.';
       return;
     }
 

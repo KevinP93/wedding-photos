@@ -1,7 +1,7 @@
 ﻿<div class="detail-shell" *ngIf="album as currentAlbum">
   <header class="detail-hero">
     <button type="button" class="back-btn back-btn--icon" (click)="goBack()" aria-label="Retour">
-      &#8592;
+      <span class="back-btn__chevron" aria-hidden="true"></span>
     </button>
 
     <div class="hero-copy">
@@ -21,7 +21,7 @@
         Ajouter
       </button>
       <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
-        Se deconnecter
+        Se déconnecter
       </button>
       <app-mobile-menu
         [currentGuest]="currentGuest"
@@ -37,35 +37,83 @@
     {{ adminMessage }}
   </div>
 
-  <section class="media-grid" *ngIf="currentAlbum.photos.length > 0; else noPhotos">
+  <section class="selection-toolbar" *ngIf="hasPhotos()" [class.selection-toolbar--active]="selectionMode">
+    <div class="selection-status">
+      <p class="selection-eyebrow">Téléchargement</p>
+      <strong>
+        {{
+          selectionMode
+            ? (getSelectedPhotoCount() + ' sélectionnée(s)')
+            : 'Choisir plusieurs photos'
+        }}
+      </strong>
+    </div>
+
+    <div class="selection-actions">
+      <button type="button" class="ghost-btn selection-toggle-btn" (click)="toggleSelectionMode()">
+        {{ selectionMode ? 'Terminer' : 'Sélectionner' }}
+      </button>
+
+      <button *ngIf="selectionMode" type="button" class="ghost-btn" (click)="toggleSelectAllPhotos()">
+        {{ areAllPhotosSelected() ? 'Tout retirer' : 'Tout choisir' }}
+      </button>
+
+      <button
+        *ngIf="selectionMode"
+        type="button"
+        class="primary-btn"
+        (click)="downloadSelectedPhotos()"
+        [disabled]="getSelectedPhotoCount() === 0 || isDownloadingSelection"
+      >
+        {{ getBulkDownloadButtonLabel() }}
+      </button>
+    </div>
+  </section>
+
+  <p class="selection-message selection-feedback" *ngIf="selectionMessage">{{ selectionMessage }}</p>
+  <p class="selection-error selection-feedback" *ngIf="selectionError">{{ selectionError }}</p>
+
+  <section
+    class="media-grid"
+    [class.media-grid--selection]="selectionMode"
+    *ngIf="currentAlbum.photos.length > 0; else noPhotos"
+    (pointermove)="onSelectionPointerMove($event)"
+  >
     <button
       type="button"
       class="media-card"
       [class.media-card--preserve]="shouldPreserveGridPhoto(photo)"
+      [class.media-card--selecting]="selectionMode"
+      [class.media-card--selected]="isPhotoSelected(photo)"
       *ngFor="let photo of currentAlbum.photos; trackBy: trackByPhotoId; let index = index"
       [attr.data-photo-id]="photo.id"
-      (click)="viewPhoto(index)"
+      (pointerdown)="onSelectionPointerDown(photo, $event)"
+      (click)="onMediaCardClick(index, photo, $event)"
     >
       <span class="media-card-media">
-        <img
-          *ngIf="photo.type === 'image'; else gridVideo"
-          [src]="shouldPreserveGridPhoto(photo) ? (photo.viewerUrl || photo.url) : (photo.gridUrl || photo.url)"
-          [alt]="'Photo partagee par ' + currentAlbum.name"
-          loading="lazy"
-          (load)="onGridImageLoad(photo.id, $event)"
-        />
+          <img
+            *ngIf="photo.type === 'image'; else gridVideo"
+            [src]="shouldPreserveGridPhoto(photo) ? (photo.viewerUrl || photo.url) : (photo.gridUrl || photo.url)"
+            [alt]="'Photo partagée par ' + currentAlbum.name"
+            loading="lazy"
+            (load)="onGridImageLoad(photo.id, $event)"
+          />
 
         <ng-template #gridVideo>
           <video [src]="photo.gridUrl || photo.url" muted playsinline preload="metadata"></video>
         </ng-template>
       </span>
 
-      <span class="media-like-badge" *ngIf="getPhotoStats(photo).likes > 0">
+      <span class="media-select-badge" *ngIf="selectionMode" aria-hidden="true">
+        {{ isPhotoSelected(photo) ? '✓' : '+' }}
+      </span>
+
+      <span class="media-like-badge" *ngIf="!selectionMode && getPhotoStats(photo).likes > 0">
         <span aria-hidden="true">&#10084;</span>
         <span>{{ getPhotoStats(photo).likes }}</span>
       </span>
 
-      <span class="media-video-indicator" *ngIf="photo.type === 'video'">▶</span>
+      <span class="media-video-indicator" *ngIf="!selectionMode && photo.type === 'video'">▶</span>
     </button>
   </section>
 
@@ -106,7 +154,7 @@
         <img
           *ngIf="activePhoto.type === 'image'; else viewerVideo"
           [src]="activePhoto.viewerUrl || activePhoto.url"
-          [alt]="'Photo partagee par ' + activePhoto.uploadedBy"
+          [alt]="'Photo partagée par ' + activePhoto.uploadedBy"
         />
 
         <ng-template #viewerVideo>
@@ -139,7 +187,7 @@
             [alt]="'Photo de profil de ' + currentAlbum.name"
           />
           <p class="viewer-kicker">{{ currentAlbum.name }}</p>
-          <h2>{{ activePhoto.type === 'video' ? 'Video partagee' : 'Photo partagee' }}</h2>
+          <h2>{{ activePhoto.type === 'video' ? 'Vidéo partagée' : 'Photo partagée' }}</h2>
           <p>
             {{ selectedIndex + 1 }} / {{ currentAlbum.photos.length }}
             · {{ activePhoto.uploadedAt | date:'d MMMM yyyy, HH:mm' }}
@@ -166,7 +214,7 @@
               [class.ghost-btn--liked]="isLiked(activePhoto)"
               (click)="toggleLike(activePhoto)"
             >
-              {{ isLiked(activePhoto) ? 'J\'aime deja' : 'J\'aime' }}
+              {{ isLiked(activePhoto) ? 'J\'aime déjà' : 'J\'aime' }}
             </button>
 
             <button type="button" class="primary-btn download-btn" (click)="downloadPhoto(activePhoto)">

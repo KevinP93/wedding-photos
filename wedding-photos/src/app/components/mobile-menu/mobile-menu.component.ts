@@ -1,4 +1,4 @@
-import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, Input, OnDestroy, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { buildAvatarUrl } from '../../utils/avatar';
@@ -10,7 +10,7 @@ import { buildAvatarUrl } from '../../utils/avatar';
   templateUrl: './mobile-menu.component.html',
   styleUrl: './mobile-menu.component.scss'
 })
-export class MobileMenuComponent {
+export class MobileMenuComponent implements OnDestroy {
   @Input() currentGuest = '';
   @Input() currentUsername = '';
   @Input() currentAvatarUrl = '';
@@ -26,12 +26,24 @@ export class MobileMenuComponent {
     this.closeMenu();
   }
 
+  ngOnDestroy(): void {
+    this.unlockScroll();
+  }
+
   toggleMenu(): void {
     this.isOpen = !this.isOpen;
+
+    if (this.isOpen) {
+      this.lockScroll();
+      return;
+    }
+
+    this.unlockScroll();
   }
 
   closeMenu(): void {
     this.isOpen = false;
+    this.unlockScroll();
   }
 
   openProfile(): void {
@@ -46,5 +58,15 @@ export class MobileMenuComponent {
 
   get avatarUrl(): string {
     return buildAvatarUrl(this.currentAvatarUrl, this.currentGuest, this.currentUsername);
+  }
+
+  private lockScroll(): void {
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  }
+
+  private unlockScroll(): void {
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
   }
 }

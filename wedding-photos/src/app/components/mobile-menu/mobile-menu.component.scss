@@ -7,7 +7,8 @@
     display: block;
     margin-left: auto;
     position: relative;
-    z-index: 1400;
+    z-index: 4100;
+    isolation: isolate;
   }
 
   .mobile-menu__toggle,
@@ -20,6 +21,8 @@
   .mobile-menu__toggle {
     width: 3rem;
     height: 3rem;
+    position: relative;
+    z-index: 4102;
     display: grid;
     align-content: center;
     gap: 5px;
@@ -56,22 +59,24 @@
     inset: 0;
     background: rgba(42, 28, 31, 0.34);
     backdrop-filter: blur(10px);
-    z-index: 1390;
+    z-index: 4098;
   }
 
   .mobile-menu__panel {
     position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    padding: 18px 18px calc(env(safe-area-inset-bottom) + 18px);
+    right: max(12px, env(safe-area-inset-right));
+    top: calc(env(safe-area-inset-top) + 64px);
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+    max-width: min(100vw - 24px, 28rem);
+    padding: 18px 18px 18px;
     display: grid;
     gap: 14px;
-    border-radius: 26px 26px 0 0;
+    border-radius: 26px;
     border: 1px solid rgba(126, 88, 78, 0.12);
     background: rgba(255, 251, 247, 0.96);
     box-shadow: 0 24px 54px rgba(55, 36, 39, 0.22);
-    z-index: 1400;
+    z-index: 4099;
   }
 
   .mobile-menu__header {

@@ -75,7 +75,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const rejectedCount = files.length - imageFiles.length;
 
     this.selectionError = rejectedCount > 0
-      ? 'Seules les photos sont autorisees.'
+      ? 'Seules les photos sont autorisées.'
       : '';
 
     if (imageFiles.length === 0) {
@@ -210,7 +210,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.signOut();
     } catch (error) {
-      console.error('Erreur lors de la deconnexion:', error);
+      console.error('Erreur lors de la déconnexion:', error);
     } finally {
       this.clearSession();
       this.router.navigate(['/login']);

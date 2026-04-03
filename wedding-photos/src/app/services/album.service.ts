@@ -34,6 +34,10 @@ export interface Album {
 export class AlbumService {
   private readonly albumsSubject = new BehaviorSubject<Album[]>([]);
   private initializationPromise: Promise<void> | null = null;
+  private realtimeStarted = false;
+  private stopRealtimeSync: (() => void) | null = null;
+  private scheduledRefreshTimer: number | null = null;
+  private fallbackRefreshInterval: number | null = null;
 
   public albums$ = this.albumsSubject.asObservable();
 
@@ -43,6 +47,8 @@ export class AlbumService {
   ) {}
 
   async ready(forceRefresh = false): Promise<void> {
+    this.startLiveSync();
+
     if (forceRefresh || !this.initializationPromise) {
       this.initializationPromise = this.refreshSharedAlbums();
     }
@@ -223,6 +229,52 @@ export class AlbumService {
     return (rows ?? [])
       .map(row => this.mapAlbum(row))
       .sort((left, right) => this.getAlbumLastActivity(right).getTime() - this.getAlbumLastActivity(left).getTime());
+  }
+
+  private startLiveSync(): void {
+    if (this.realtimeStarted || typeof window === 'undefined') {
+      return;
+    }
+
+    this.realtimeStarted = true;
+    this.stopRealtimeSync = this.supabaseService.subscribeToGalleryChanges(() => {
+      this.scheduleSilentRefresh();
+    });
+
+    document.addEventListener('visibilitychange', this.handleVisibilityRefresh);
+    window.addEventListener('focus', this.handleWindowFocus);
+    this.fallbackRefreshInterval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        this.scheduleSilentRefresh();
+      }
+    }, 12000);
+  }
+
+  private readonly handleVisibilityRefresh = (): void => {
+    if (document.visibilityState === 'visible') {
+      this.scheduleSilentRefresh();
+    }
+  };
+
+  private readonly handleWindowFocus = (): void => {
+    this.scheduleSilentRefresh();
+  };
+
+  private scheduleSilentRefresh(): void {
+    if (!sessionStorage.getItem('currentUserId')) {
+      return;
+    }
+
+    if (this.scheduledRefreshTimer) {
+      window.clearTimeout(this.scheduledRefreshTimer);
+    }
+
+    this.scheduledRefreshTimer = window.setTimeout(() => {
+      this.scheduledRefreshTimer = null;
+      void this.refreshSharedAlbums().catch(error => {
+        console.error('Impossible de synchroniser les albums en direct:', error);
+      });
+    }, 350);
   }
 
   private mapAlbum(row: any): Album {

@@ -33,7 +33,10 @@
             "styles": [
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "allowedCommonJsDependencies": [
+              "jszip"
+            ]
           },
           "configurations": {
             "production": {
@@ -45,8 +48,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "12kb",
-                  "maximumError": "14kb"
+                  "maximumWarning": "13kb",
+                  "maximumError": "15kb"
                 }
               ],
               "outputHashing": "all",

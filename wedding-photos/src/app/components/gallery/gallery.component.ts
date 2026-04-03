@@ -157,12 +157,12 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
       this.applyCurrentUser(updatedUser);
       this.resetProfileForm();
-      this.profileMessage = 'Profil mis a jour.';
+      this.profileMessage = 'Profil mis à jour.';
       await this.albumService.refreshSharedAlbums();
     } catch (error) {
       this.profileErrorMessage = error instanceof Error
         ? error.message
-        : 'Impossible de mettre a jour le profil.';
+        : 'Impossible de mettre à jour le profil.';
     } finally {
       this.isSavingProfile = false;
       this.revokeProfilePreview();
@@ -206,7 +206,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.signOut();
     } catch (error) {
-      console.error('Erreur lors de la deconnexion:', error);
+      console.error('Erreur lors de la déconnexion:', error);
     } finally {
       this.clearSession();
       this.router.navigate(['/login']);
@@ -248,14 +248,14 @@ export class GalleryComponent implements OnInit, OnDestroy {
   getSearchResultLabel(): string {
     const count = this.filteredOtherAlbums.length;
     if (count === 0) {
-      return this.searchQuery.trim() ? 'Aucun resultat' : 'Aucun album';
+      return this.searchQuery.trim() ? 'Aucun résultat' : 'Aucun album';
     }
 
     if (!this.searchQuery.trim()) {
       return `${count} album${count > 1 ? 's' : ''}`;
     }
 
-    return `${count} resultat${count > 1 ? 's' : ''}`;
+    return `${count} résultat${count > 1 ? 's' : ''}`;
   }
 
   hasActiveSearch(): boolean {
@@ -310,11 +310,11 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }
 
     if (album.photos.length === 0) {
-      this.adminMessage = `L'album "${album.name}" est deja vide.`;
+      this.adminMessage = `L'album "${album.name}" est déjà vide.`;
       return;
     }
 
-    const confirmed = confirm(`Vider l'album "${album.name}" ? Toutes les photos seront supprimees, mais l'album restera disponible pour l'utilisateur.`);
+    const confirmed = confirm(`Vider l'album "${album.name}" ? Toutes les photos seront supprimées, mais l'album restera disponible pour l'utilisateur.`);
     if (!confirmed) {
       return;
     }
@@ -335,7 +335,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
         await this.albumService.removePhotoFromAlbum(album.id, photo.id);
       }
 
-      this.adminMessage = `L'album "${album.name}" a ete vide.`;
+      this.adminMessage = `L'album "${album.name}" a été vidé.`;
     } catch (error) {
       console.error('Erreur lors du vidage de l\'album:', error);
       this.adminMessage = 'Impossible de vider l\'album pour le moment.';

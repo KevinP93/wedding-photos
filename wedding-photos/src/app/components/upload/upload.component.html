@@ -2,10 +2,10 @@
   <header class="upload-hero">
     <div class="hero-actions">
       <button type="button" class="back-btn back-btn--icon hero-action" (click)="goBack()" aria-label="Retour">
-        &#8592;
+        <span class="back-btn__chevron" aria-hidden="true"></span>
       </button>
       <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
-        Se deconnecter
+        Se déconnecter
       </button>
       <app-mobile-menu
         [currentGuest]="currentGuest"
@@ -45,7 +45,7 @@
       <span class="drop-zone__ornament"></span>
       <span class="drop-zone__eyebrow">Ajouter</span>
       <strong>Choisir dans la galerie</strong>
-      <p>Photos de votre telephone.</p>
+      <p>Photos de votre téléphone.</p>
     </button>
 
     <div class="selection-error" *ngIf="selectionError">
@@ -54,8 +54,8 @@
 
     <div class="selection-head" *ngIf="selectedFiles.length > 0">
       <div>
-        <p class="section-eyebrow">Selection</p>
-        <h2>{{ selectedFiles.length }} element(s)</h2>
+        <p class="section-eyebrow">Sélection</p>
+        <h2>{{ selectedFiles.length }} élément(s)</h2>
       </div>
     </div>
 
@@ -65,7 +65,7 @@
           <img
             *ngIf="selectedFile.type === 'image'; else selectedVideo"
             [src]="selectedFile.previewUrl"
-            [alt]="'Previsualisation du fichier ' + selectedFile.file.name"
+            [alt]="'Prévisualisation du fichier ' + selectedFile.file.name"
           />
 
           <ng-template #selectedVideo>
@@ -111,7 +111,7 @@
 
     <div class="result-panel" *ngIf="!isUploading && (uploadResults.success > 0 || uploadResults.error > 0)">
       <div class="result-pill result-pill--success" *ngIf="uploadResults.success > 0">
-        {{ uploadResults.success }} ajoute(s)
+        {{ uploadResults.success }} ajouté(s)
       </div>
       <div class="result-pill result-pill--error" *ngIf="uploadResults.error > 0">
         {{ uploadResults.error }} erreur(s)
