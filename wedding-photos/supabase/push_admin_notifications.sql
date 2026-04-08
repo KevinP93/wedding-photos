@@ -30,6 +30,7 @@ create table if not exists public.push_subscriptions (
   updated_at timestamptz not null default now()
 );
 
+
 create index if not exists push_subscriptions_user_idx
   on public.push_subscriptions (user_id, created_at desc);
 
