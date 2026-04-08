@@ -73,6 +73,14 @@
   pointer-events: none;
 }
 
+.login-card__topbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+
 .eyebrow {
   margin: 0 0 10px;
   color: var(--terracotta);
@@ -270,6 +278,10 @@ label {
     margin-bottom: 8px;
   }
 
+  .login-card__topbar {
+    margin-bottom: 8px;
+  }
+
   .eyebrow,
   h1,
   .subtitle {
@@ -364,6 +376,10 @@ label {
   .app-brand-logo--login {
     width: min(6.4rem, 28vw);
     margin-bottom: 6px;
+  }
+
+  .login-card__topbar {
+    margin-bottom: 4px;
   }
 
   .subtitle {

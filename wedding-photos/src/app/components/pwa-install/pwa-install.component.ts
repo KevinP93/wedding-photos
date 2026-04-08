@@ -1,6 +1,8 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { InstallDevice, PwaService } from '../../services/pwa.service';
+import { I18nService } from '../../services/i18n.service';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 
 type DeferredInstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -10,21 +12,25 @@ type DeferredInstallPrompt = Event & {
 @Component({
   selector: 'app-pwa-install',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LanguageSwitcherComponent],
   template: `
     <div *ngIf="showInstallPrompt" class="install-layer">
       <div class="install-layer__backdrop" (click)="dismissPrompt()" aria-hidden="true"></div>
 
-      <aside class="install-sheet" role="dialog" aria-modal="true" aria-label="Installer l application">
+      <aside class="install-sheet" role="dialog" aria-modal="true" [attr.aria-label]="i18n.t('pwa.aria.installApp')">
         <div class="install-sheet__logo-wrap">
-          <img class="install-sheet__logo" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
+          <img class="install-sheet__logo" src="assets/icons/KG_logo.png" [attr.alt]="i18n.t('common.brand')" />
+        </div>
+
+        <div class="install-sheet__language">
+          <app-language-switcher />
         </div>
 
         <div class="install-sheet__copy">
-          <p class="install-sheet__eyebrow">Application</p>
-          <p class="install-sheet__question">Quel appareil utilisez-vous ?</p>
+          <p class="install-sheet__eyebrow">{{ i18n.t('pwa.eyebrow') }}</p>
+          <p class="install-sheet__question">{{ i18n.t('pwa.question') }}</p>
 
-          <div class="install-sheet__devices" role="group" aria-label="Type d appareil">
+          <div class="install-sheet__devices" role="group" [attr.aria-label]="i18n.t('pwa.aria.deviceType')">
             <button
               type="button"
               class="install-sheet__device"
@@ -55,7 +61,7 @@ type DeferredInstallPrompt = Event & {
               [class.install-sheet__device--active]="selectedDevice === 'other'"
               (click)="selectDevice('other')"
             >
-              Autre
+              {{ i18n.t('pwa.device.other') }}
             </button>
           </div>
 
@@ -67,19 +73,19 @@ type DeferredInstallPrompt = Event & {
           </ol>
 
           <p *ngIf="showPromptFallback" class="install-sheet__hint">
-            Si rien ne s affiche, ouvrez le menu du navigateur puis ajoutez l app a l ecran d accueil.
+            {{ i18n.t('pwa.hint') }}
           </p>
         </div>
 
         <div class="install-sheet__actions">
           <button *ngIf="showNativeInstallButton" type="button" class="install-sheet__primary" (click)="installApp()">
-            Installer
+            {{ i18n.t('common.actions.install') }}
           </button>
           <button *ngIf="!showNativeInstallButton" type="button" class="install-sheet__primary" (click)="dismissPrompt()">
-            Compris
+            {{ i18n.t('common.actions.understood') }}
           </button>
           <button type="button" class="install-sheet__secondary" (click)="dismissPrompt()">
-            Plus tard
+            {{ i18n.t('common.actions.retryLater') }}
           </button>
         </div>
       </aside>
@@ -119,6 +125,11 @@ type DeferredInstallPrompt = Event & {
     }
 
     .install-sheet__logo-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    .install-sheet__language {
       display: flex;
       justify-content: center;
     }
@@ -265,7 +276,7 @@ export class PwaInstallComponent implements OnInit, OnDestroy {
   private previousBodyLeft = '';
   private previousBodyRight = '';
 
-  constructor(private pwaService: PwaService) {}
+  constructor(private pwaService: PwaService, public i18n: I18nService) {}
 
   ngOnInit(): void {
     window.addEventListener('beforeinstallprompt', this.handleBeforeInstallPrompt as EventListener);
@@ -305,30 +316,30 @@ export class PwaInstallComponent implements OnInit, OnDestroy {
   get installTitle(): string {
     switch (this.selectedDevice) {
       case 'iphone':
-        return 'Installer sur iPhone';
+        return this.i18n.t('pwa.title.iphone');
       case 'samsung':
-        return 'Installer sur Samsung';
+        return this.i18n.t('pwa.title.samsung');
       case 'android':
-        return 'Installer sur Android';
+        return this.i18n.t('pwa.title.android');
       default:
-        return 'Installer l application';
+        return this.i18n.t('pwa.title.other');
     }
   }
 
   get installMessage(): string {
     switch (this.selectedDevice) {
       case 'iphone':
-        return 'Ajoutez l app a votre ecran d accueil depuis Safari pour la lancer comme une vraie application.';
+        return this.i18n.t('pwa.message.iphone');
       case 'samsung':
         return this.showNativeInstallButton
-          ? 'Utilisez le bouton Installer. Si votre navigateur ne propose rien, passez par le menu de Chrome ou Samsung Internet.'
-          : 'Depuis Chrome ou Samsung Internet, ajoutez l app a votre ecran d accueil.';
+          ? this.i18n.t('pwa.message.samsung.native')
+          : this.i18n.t('pwa.message.samsung.fallback');
       case 'android':
         return this.showNativeInstallButton
-          ? 'Utilisez le bouton Installer pour ajouter l app a votre ecran d accueil.'
-          : 'Depuis le menu du navigateur Android, ajoutez l app a votre ecran d accueil.';
+          ? this.i18n.t('pwa.message.android.native')
+          : this.i18n.t('pwa.message.android.fallback');
       default:
-        return 'Ajoutez l app a votre ecran d accueil pour l utiliser comme une vraie application mobile.';
+        return this.i18n.t('pwa.message.other');
     }
   }
 
@@ -336,39 +347,39 @@ export class PwaInstallComponent implements OnInit, OnDestroy {
     switch (this.selectedDevice) {
       case 'iphone':
         return [
-          'Ouvrez le menu Partager de Safari',
-          'Touchez Sur l ecran d accueil',
-          'Validez pour ajouter l app'
+          this.i18n.t('pwa.steps.iphone.1'),
+          this.i18n.t('pwa.steps.iphone.2'),
+          this.i18n.t('pwa.steps.iphone.3')
         ];
       case 'samsung':
         return this.showNativeInstallButton
           ? [
-              'Touchez Installer ci-dessous',
-              'Validez l ajout de l application',
-              'Ouvrez ensuite l app depuis votre ecran d accueil'
+              this.i18n.t('pwa.steps.samsung.native.1'),
+              this.i18n.t('pwa.steps.samsung.native.2'),
+              this.i18n.t('pwa.steps.samsung.native.3')
             ]
           : [
-              'Ouvrez le menu de Chrome ou Samsung Internet',
-              'Touchez Installer l application ou Ajouter a l ecran d accueil',
-              'Validez l ajout sur votre telephone'
+              this.i18n.t('pwa.steps.samsung.fallback.1'),
+              this.i18n.t('pwa.steps.samsung.fallback.2'),
+              this.i18n.t('pwa.steps.samsung.fallback.3')
             ];
       case 'android':
         return this.showNativeInstallButton
           ? [
-              'Touchez Installer ci-dessous',
-              'Confirmez l installation',
-              'Lancez ensuite l app depuis votre ecran d accueil'
+              this.i18n.t('pwa.steps.android.native.1'),
+              this.i18n.t('pwa.steps.android.native.2'),
+              this.i18n.t('pwa.steps.android.native.3')
             ]
           : [
-              'Ouvrez le menu du navigateur',
-              'Touchez Ajouter a l ecran d accueil',
-              'Validez l ajout sur votre telephone'
+              this.i18n.t('pwa.steps.android.fallback.1'),
+              this.i18n.t('pwa.steps.android.fallback.2'),
+              this.i18n.t('pwa.steps.android.fallback.3')
             ];
       default:
         return [
-          'Ouvrez le menu de votre navigateur',
-          'Choisissez Ajouter a l ecran d accueil ou Installer l application',
-          'Validez pour retrouver l app sur votre telephone'
+          this.i18n.t('pwa.steps.other.1'),
+          this.i18n.t('pwa.steps.other.2'),
+          this.i18n.t('pwa.steps.other.3')
         ];
     }
   }

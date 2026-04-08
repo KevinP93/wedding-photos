@@ -2,6 +2,7 @@ import { Component, EventEmitter, HostListener, Input, OnDestroy, Output } from 
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { buildAvatarUrl } from '../../utils/avatar';
+import { I18nService } from '../../services/i18n.service';
 
 @Component({
   selector: 'app-mobile-menu',
@@ -14,9 +15,11 @@ export class MobileMenuComponent implements OnDestroy {
   @Input() currentGuest = '';
   @Input() currentUsername = '';
   @Input() currentAvatarUrl = '';
+  @Input() showAdd = false;
   @Input() showProfile = true;
   @Input() unreadCount = 0;
 
+  @Output() addRequested = new EventEmitter<void>();
   @Output() profileRequested = new EventEmitter<void>();
   @Output() logoutRequested = new EventEmitter<void>();
 
@@ -52,6 +55,11 @@ export class MobileMenuComponent implements OnDestroy {
     this.profileRequested.emit();
   }
 
+  openAdd(): void {
+    this.closeMenu();
+    this.addRequested.emit();
+  }
+
   logout(): void {
     this.closeMenu();
     this.logoutRequested.emit();
@@ -60,6 +68,8 @@ export class MobileMenuComponent implements OnDestroy {
   get avatarUrl(): string {
     return buildAvatarUrl(this.currentAvatarUrl, this.currentGuest, this.currentUsername);
   }
+
+  constructor(public i18n: I18nService) {}
 
   private lockScroll(): void {
     document.body.style.overflow = 'hidden';

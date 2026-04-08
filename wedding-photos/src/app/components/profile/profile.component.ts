@@ -7,13 +7,15 @@ import { AlbumService, Album } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { NotificationService } from '../../services/notification.service';
 import { PhotoTagNotification, SupabaseService } from '../../services/supabase.service';
+import { I18nService } from '../../services/i18n.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, MobileMenuComponent],
+  imports: [CommonModule, FormsModule, MobileMenuComponent, LanguageSwitcherComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
 })
@@ -42,7 +44,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private cloudinaryService: CloudinaryService,
     private supabaseService: SupabaseService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    public i18n: I18nService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -140,6 +143,18 @@ export class ProfileComponent implements OnInit, OnDestroy {
     );
   }
 
+  getNotificationsCountLabel(): string {
+    return this.i18n.tc('counts.notification', this.unreadNotificationCount);
+  }
+
+  getUsernameReadonlyLabel(): string {
+    return this.i18n.t('profile.usernameReadonly', { username: this.currentUsername });
+  }
+
+  getNotificationText(notification: PhotoTagNotification): string {
+    return this.i18n.t('profile.notificationTagged', { name: notification.actorDisplayName });
+  }
+
   trackByNotificationId(_: number, notification: PhotoTagNotification): string {
     return notification.id;
   }
@@ -153,7 +168,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     }
 
     if (!file.type.startsWith('image/')) {
-      this.profileErrorMessage = 'Choisissez une image.';
+      this.profileErrorMessage = this.i18n.t('profile.error.chooseImage');
       return;
     }
 
@@ -201,7 +216,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     const displayName = this.profileDisplayName.trim();
     if (!displayName) {
-      this.profileErrorMessage = 'Entrez votre nom.';
+      this.profileErrorMessage = this.i18n.t('profile.error.enterName');
       return;
     }
 
@@ -242,11 +257,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
         ? this.albumService.getAlbum(this.currentAlbumId)
         : undefined;
       this.resetProfileForm();
-      this.profileMessage = 'Profil mis à jour.';
+      this.profileMessage = this.i18n.t('profile.updated');
     } catch (error) {
       this.profileErrorMessage = error instanceof Error
         ? error.message
-        : 'Impossible de mettre à jour le profil.';
+        : this.i18n.t('profile.error.updateFailed');
     } finally {
       this.isSavingProfile = false;
       this.revokeProfilePreview();

@@ -1,20 +1,21 @@
-﻿import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { AlbumService, Album, Photo, PhotoTaggedUser } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { PwaService } from '../../services/pwa.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { NotificationService } from '../../services/notification.service';
+import { I18nService } from '../../services/i18n.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-album-detail',
   standalone: true,
-  imports: [CommonModule, MobileMenuComponent],
+  imports: [CommonModule, MobileMenuComponent, LanguageSwitcherComponent],
   templateUrl: './album-detail.component.html',
   styleUrl: './album-detail.component.scss'
 })
@@ -58,7 +59,8 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
     private cloudinaryService: CloudinaryService,
     private pwaService: PwaService,
     private supabaseService: SupabaseService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    public i18n: I18nService
   ) {}
 
   get selectedPhoto(): Photo | undefined {
@@ -98,8 +100,7 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
       this.syncAlbumState();
     });
 
-    this.albumSubscription = this.albumService.albums$.subscribe(albums => {
-      void albums;
+    this.albumSubscription = this.albumService.albums$.subscribe(() => {
       this.syncAlbumState();
     });
 
@@ -168,19 +169,47 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
     return buildAvatarUrl(avatarUrl, displayName, username);
   }
 
+  getAlbumMemoryLabel(count: number): string {
+    return this.i18n.tc('counts.memory', count);
+  }
+
+  getPhotoCountLabel(count: number): string {
+    return this.i18n.tc('counts.photo', count);
+  }
+
+  getSelectionStatusLabel(): string {
+    return this.selectionMode
+      ? this.i18n.tc('counts.selected', this.getSelectedPhotoCount())
+      : this.i18n.t('album.selectionHelp');
+  }
+
+  getPhotoAlt(name: string): string {
+    return this.i18n.t('album.sharedBy', { name });
+  }
+
+  getViewerTitle(photo: Photo): string {
+    return photo.type === 'video'
+      ? this.i18n.t('album.sharedVideo')
+      : this.i18n.t('album.sharedPhoto');
+  }
+
+  getViewerMetaLabel(photo: Photo): string {
+    const position = `${this.selectedIndex + 1} / ${this.album?.photos.length || 0}`;
+    return `${position} · ${this.formatPhotoDate(photo.uploadedAt)}`;
+  }
+
+  getDownloadsLabel(photo: Photo): string {
+    return this.i18n.t('album.saves', {
+      count: this.getPhotoStats(photo).downloads
+    });
+  }
+
   canUploadToCurrentAlbum(): boolean {
-    return Boolean(
-      !this.isAdmin &&
-      this.album &&
-      this.album.id === this.currentAlbumId
-    );
+    return Boolean(!this.isAdmin && this.album && this.album.id === this.currentAlbumId);
   }
 
   canDeleteFromCurrentAlbum(): boolean {
-    return Boolean(
-      this.album &&
-      (this.isAdmin || this.album.id === this.currentAlbumId)
-    );
+    return Boolean(this.album && (this.isAdmin || this.album.id === this.currentAlbumId));
   }
 
   hasPhotos(): boolean {
@@ -408,7 +437,7 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const confirmed = confirm('Supprimer cette photo ?');
+    const confirmed = confirm(this.i18n.t('album.photoDeleteConfirm'));
     if (!confirmed) {
       return;
     }
@@ -436,10 +465,10 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
         this.selectedIndex = this.album.photos.length - 1;
       }
 
-      this.adminMessage = 'Photo supprimee.';
+      this.adminMessage = this.i18n.t('album.photoDeleted');
     } catch (error) {
       console.error('Erreur lors de la suppression de la photo:', error);
-      this.adminMessage = 'Impossible de supprimer cette photo pour le moment.';
+      this.adminMessage = this.i18n.t('album.photoDeleteError');
     }
   }
 
@@ -487,7 +516,9 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
         try {
           await navigator.share({
             files,
-            title: `Photos de ${this.album.name}`
+            title: this.i18n.t('album.downloadSelectionTitle', {
+              name: this.album.name
+            })
           });
 
           await this.recordSuccessfulDownloads(selectedPhotos);
@@ -509,7 +540,7 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
       this.resetSelectionState();
     } catch (error) {
       console.error('Erreur lors du téléchargement multiple:', error);
-      this.selectionError = 'Impossible de préparer cette sélection pour le moment.';
+      this.selectionError = this.i18n.t('album.selectionPrepareError');
     } finally {
       this.isDownloadingSelection = false;
     }
@@ -697,14 +728,14 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   }
 
   private getDownloadName(photo: Photo, blob?: Blob): string {
-    const cleanUploader = (photo.uploadedBy || 'souvenir')
+    const cleanUploader = (photo.uploadedBy || 'memory')
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-zA-Z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
       .toLowerCase();
 
-    return `${cleanUploader || 'souvenir'}-${photo.id}.${this.getFileExtension(photo, blob)}`;
+    return `${cleanUploader || 'memory'}-${photo.id}.${this.getFileExtension(photo, blob)}`;
   }
 
   private getFileExtension(photo: Photo, blob?: Blob): string {
@@ -741,15 +772,17 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   }
 
   getDownloadButtonLabel(): string {
-    return this.pwaService.isMobileDevice() ? 'Enregistrer' : 'Telecharger';
+    return this.pwaService.isMobileDevice()
+      ? this.i18n.t('common.actions.save')
+      : this.i18n.t('common.actions.download');
   }
 
   getBulkDownloadButtonLabel(): string {
     if (this.isDownloadingSelection) {
-      return 'Préparation...';
+      return this.i18n.t('album.downloadPreparing');
     }
 
-    return 'Telecharger';
+    return this.i18n.t('common.actions.download');
   }
 
   private shouldUseNativeShareFiles(files: File[]): boolean {
@@ -832,57 +865,55 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   private getNativeShareHint(type: 'image' | 'video'): string {
     if (this.isIosDevice()) {
       return type === 'video'
-        ? 'Dans la feuille de partage iPhone, utilisez Enregistrer la vidéo.'
-        : 'Dans la feuille de partage iPhone, utilisez Enregistrer l’image.';
+        ? this.i18n.t('album.iosShareVideo')
+        : this.i18n.t('album.iosShareImage');
     }
 
     if (this.isAndroidDevice()) {
       return type === 'video'
-        ? 'Dans la feuille de partage Android, choisissez Enregistrer ou votre application vidéo.'
-        : 'Dans la feuille de partage Android, choisissez Enregistrer ou votre application photo.';
+        ? this.i18n.t('album.androidShareVideo')
+        : this.i18n.t('album.androidShareImage');
     }
 
     return type === 'video'
-      ? 'Utilisez la feuille de partage pour enregistrer la vidéo.'
-      : 'Utilisez la feuille de partage pour enregistrer l’image.';
+      ? this.i18n.t('album.shareVideo')
+      : this.i18n.t('album.shareImage');
   }
 
   private getMobileFallbackHint(type: 'image' | 'video'): string {
     if (this.isIosDevice()) {
       return type === 'video'
-        ? 'La vidéo va s’ouvrir. Ensuite utilisez Partager puis Enregistrer la vidéo.'
-        : 'L’image va s’ouvrir. Ensuite utilisez Partager puis Enregistrer l’image.';
+        ? this.i18n.t('album.iosFallbackVideo')
+        : this.i18n.t('album.iosFallbackImage');
     }
 
     if (this.isAndroidDevice()) {
       return type === 'video'
-        ? 'La vidéo va s’ouvrir. Ensuite utilisez le menu du navigateur ou Partager pour l’enregistrer.'
-        : 'L’image va s’ouvrir. Ensuite utilisez le menu du navigateur ou Partager pour l’enregistrer.';
+        ? this.i18n.t('album.androidFallbackVideo')
+        : this.i18n.t('album.androidFallbackImage');
     }
 
     return type === 'video'
-      ? 'Le fichier va s’ouvrir. Ensuite utilisez le menu du navigateur pour l’enregistrer.'
-      : 'L’image va s’ouvrir. Ensuite utilisez le menu du navigateur pour l’enregistrer.';
+      ? this.i18n.t('album.browserFallbackVideo')
+      : this.i18n.t('album.browserFallbackImage');
   }
 
   private getBulkShareHint(): string {
     if (this.isIosDevice()) {
-      return 'Dans la feuille de partage iPhone, enregistrez les photos sélectionnées.';
+      return this.i18n.t('album.bulkShareIos');
     }
 
     if (this.isAndroidDevice()) {
-      return 'Dans la feuille de partage Android, enregistrez les photos sélectionnées.';
+      return this.i18n.t('album.bulkShareAndroid');
     }
 
-    return 'Utilisez la feuille de partage pour enregistrer votre sélection.';
+    return this.i18n.t('album.bulkShareDefault');
   }
 
   private getBulkDownloadSuccessMessage(count: number): string {
-    if (this.pwaService.isMobileDevice()) {
-      return `${count} photos ont été préparées ensemble.`;
-    }
-
-    return `${count} photos ont été téléchargées dans une archive.`;
+    return this.pwaService.isMobileDevice()
+      ? this.i18n.t('album.downloadSelectionReadyMobile', { count })
+      : this.i18n.t('album.downloadSelectionReadyDesktop', { count });
   }
 
   private isIosDevice(): boolean {
@@ -992,5 +1023,24 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('currentAvatarUrl');
     sessionStorage.removeItem('isAdmin');
     sessionStorage.removeItem('adminPassword');
+  }
+
+  private formatPhotoDate(value: Date | string): string {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat(this.getCurrentLocale(), {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+
+  private getCurrentLocale(): string {
+    return this.i18n.currentLanguage === 'pt' ? 'pt-PT' : 'fr-FR';
   }
 }

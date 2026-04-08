@@ -4,13 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AlbumService } from '../../services/album.service';
 import { AppUser, SupabaseService } from '../../services/supabase.service';
+import { I18nService } from '../../services/i18n.service';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 
 type AuthMode = 'signin' | 'signup';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LanguageSwitcherComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'
 })
@@ -27,7 +29,8 @@ export class LoginComponent implements OnInit {
   constructor(
     private albumService: AlbumService,
     private supabaseService: SupabaseService,
-    private router: Router
+    private router: Router,
+    public i18n: I18nService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -51,17 +54,17 @@ export class LoginComponent implements OnInit {
     const trimmedPassword = this.password.trim();
 
     if (!trimmedUsername || !trimmedPassword) {
-      this.errorMessage = 'Entrez votre nom utilisateur et votre mot de passe.';
+      this.errorMessage = this.i18n.t('login.error.enterUsernamePassword');
       return;
     }
 
     if (this.mode === 'signup' && !trimmedDisplayName) {
-      this.errorMessage = 'Entrez le nom qui sera affiché dans la galerie.';
+      this.errorMessage = this.i18n.t('login.error.enterDisplayName');
       return;
     }
 
     if (this.mode === 'signup' && trimmedPassword !== this.confirmPassword.trim()) {
-      this.errorMessage = 'Les mots de passe ne correspondent pas.';
+      this.errorMessage = this.i18n.t('login.error.passwordsMismatch');
       return;
     }
 
@@ -82,7 +85,7 @@ export class LoginComponent implements OnInit {
     } catch (error) {
       this.errorMessage = error instanceof Error
         ? error.message
-        : 'Connexion impossible pour le moment.';
+        : this.i18n.t('login.error.unavailable');
     } finally {
       this.isLoading = false;
     }

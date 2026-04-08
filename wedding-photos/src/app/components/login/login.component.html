@@ -6,19 +6,23 @@
   </div>
 
   <section class="login-card">
-    <img class="app-brand-logo app-brand-logo--login" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
-    <p class="eyebrow">Souvenirs du mariage</p>
-    <h1>Photos du mariage</h1>
-    <p class="subtitle">Connectez-vous pour retrouver votre album.</p>
+    <div class="login-card__topbar">
+      <img class="app-brand-logo app-brand-logo--login" src="assets/icons/KG_logo.png" [attr.alt]="i18n.t('common.brand')" />
+      <app-language-switcher />
+    </div>
 
-    <div class="mode-switch" role="tablist" aria-label="Connexion ou création de compte">
+    <p class="eyebrow">{{ i18n.t('login.eyebrow') }}</p>
+    <h1>{{ i18n.t('login.title') }}</h1>
+    <p class="subtitle">{{ i18n.t('login.subtitle') }}</p>
+
+    <div class="mode-switch" role="tablist" [attr.aria-label]="i18n.t('login.aria.modeSwitch')">
       <button
         type="button"
         class="mode-btn"
         [class.mode-btn--active]="mode === 'signin'"
         (click)="setMode('signin')"
       >
-        Se connecter
+        {{ i18n.t('login.tabs.signin') }}
       </button>
       <button
         type="button"
@@ -26,61 +30,61 @@
         [class.mode-btn--active]="mode === 'signup'"
         (click)="setMode('signup')"
       >
-        Créer un compte
+        {{ i18n.t('login.tabs.signup') }}
       </button>
     </div>
 
     <form (ngSubmit)="onSubmit()" class="login-form">
       <ng-container *ngIf="mode === 'signup'">
-        <label for="displayName">Nom affiché dans la galerie</label>
+        <label for="displayName">{{ i18n.t('login.displayName') }}</label>
         <input
           id="displayName"
           type="text"
           [(ngModel)]="displayName"
           name="displayName"
-          placeholder="Exemple : Camille"
+          [placeholder]="i18n.t('login.displayNamePlaceholder')"
           autocomplete="name"
           required
           class="form-input"
         />
       </ng-container>
 
-      <label for="username">Nom utilisateur unique</label>
+      <label for="username">{{ i18n.t('login.username') }}</label>
       <input
         id="username"
         type="text"
         [(ngModel)]="username"
         name="username"
-        placeholder="Exemple : camille-dupont"
+        [placeholder]="i18n.t('login.usernamePlaceholder')"
         autocomplete="username"
         required
         class="form-input"
       />
 
       <p class="helper-note" *ngIf="normalizedUsernamePreview">
-        Connexion : <strong>{{ normalizedUsernamePreview }}</strong>
+        {{ i18n.t('login.connectionPreview') }} <strong>{{ normalizedUsernamePreview }}</strong>
       </p>
 
-      <label for="password">Mot de passe</label>
+      <label for="password">{{ i18n.t('login.password') }}</label>
       <input
         id="password"
         type="password"
         [(ngModel)]="password"
         name="password"
-        placeholder="Au moins 6 caractères"
+        [placeholder]="i18n.t('login.passwordPlaceholder')"
         autocomplete="{{ mode === 'signup' ? 'new-password' : 'current-password' }}"
         required
         class="form-input"
       />
 
       <ng-container *ngIf="mode === 'signup'">
-        <label for="confirmPassword">Confirmer le mot de passe</label>
+        <label for="confirmPassword">{{ i18n.t('login.confirmPassword') }}</label>
         <input
           id="confirmPassword"
           type="password"
           [(ngModel)]="confirmPassword"
           name="confirmPassword"
-          placeholder="Retapez le mot de passe"
+          [placeholder]="i18n.t('login.confirmPasswordPlaceholder')"
           autocomplete="new-password"
           required
           class="form-input"
@@ -100,7 +104,11 @@
         class="submit-btn"
         [disabled]="isLoading || !username.trim() || !password.trim() || (mode === 'signup' && (!displayName.trim() || !confirmPassword.trim()))"
       >
-        {{ isLoading ? 'Veuillez patienter...' : (mode === 'signup' ? 'Créer mon album' : 'Ouvrir mon album') }}
+        {{
+          isLoading
+            ? i18n.t('login.submit.wait')
+            : (mode === 'signup' ? i18n.t('login.submit.signup') : i18n.t('login.submit.signin'))
+        }}
       </button>
     </form>
   </section>

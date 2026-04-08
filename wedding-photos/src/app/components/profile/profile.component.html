@@ -1,40 +1,43 @@
 <div class="profile-shell">
   <header class="profile-hero">
     <div class="hero-actions">
-      <button type="button" class="back-btn back-btn--icon" (click)="goBack()" aria-label="Retour">
+      <button type="button" class="back-btn back-btn--icon" (click)="goBack()" [attr.aria-label]="i18n.t('common.actions.back')">
         <span class="back-btn__chevron" aria-hidden="true"></span>
       </button>
+      <app-language-switcher />
       <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
-        Se déconnecter
+        {{ i18n.t('common.actions.logout') }}
       </button>
       <app-mobile-menu
         [currentGuest]="currentGuest"
         [currentUsername]="currentUsername"
         [currentAvatarUrl]="currentAvatarUrl"
+        [showAdd]="!isAdmin"
         [showProfile]="false"
         [unreadCount]="unreadNotificationCount"
+        (addRequested)="goToUpload()"
         (logoutRequested)="logout()"
       />
     </div>
 
     <div class="hero-copy">
-      <p class="eyebrow">Profil</p>
+      <p class="eyebrow">{{ i18n.t('profile.title') }}</p>
       <h1>{{ currentGuest }}</h1>
-      <p>Gérez votre nom et votre photo de profil.</p>
+      <p>{{ i18n.t('profile.subtitle') }}</p>
     </div>
 
     <div class="hero-stats">
       <div class="stat-card">
         <strong>{{ getOwnPhotoCount() }}</strong>
-        <span>photos</span>
+        <span>{{ i18n.t('common.labels.photos') }}</span>
       </div>
       <div class="stat-card">
         <strong>{{ getOwnLikeCount() }}</strong>
-        <span>j'aime</span>
+        <span>{{ i18n.t('common.labels.likes') }}</span>
       </div>
       <div class="stat-card">
         <strong>{{ unreadNotificationCount }}</strong>
-        <span>notification{{ unreadNotificationCount > 1 ? 's' : '' }}</span>
+        <span>{{ getNotificationsCountLabel() }}</span>
       </div>
     </div>
   </header>
@@ -44,7 +47,7 @@
       <img
         class="profile-avatar"
         [src]="getAvatarUrl(profileAvatarUrl, profileDisplayName || currentGuest, currentUsername)"
-        [alt]="'Avatar de ' + (profileDisplayName || currentGuest)"
+        [attr.alt]="i18n.t('common.avatarOf', { name: profileDisplayName || currentGuest })"
       />
 
       <input
@@ -57,25 +60,25 @@
 
       <div class="profile-avatar-actions">
         <button type="button" class="ghost-btn" (click)="profileImageInput.click()">
-          Choisir une photo
+          {{ i18n.t('common.actions.choosePhoto') }}
         </button>
         <button type="button" class="ghost-btn" (click)="resetProfileImage()">
-          Avatar par défaut
+          {{ i18n.t('common.actions.defaultAvatar') }}
         </button>
       </div>
     </div>
 
     <div class="profile-form">
-      <label for="profileDisplayName">Nom affiché</label>
+      <label for="profileDisplayName">{{ i18n.t('profile.displayName') }}</label>
       <input
         id="profileDisplayName"
         type="text"
         class="profile-input"
         [(ngModel)]="profileDisplayName"
-        placeholder="Exemple : Camille"
+        [placeholder]="i18n.t('profile.displayNamePlaceholder')"
       />
 
-      <p class="profile-readonly">Nom d'utilisateur : {{ currentUsername }}</p>
+      <p class="profile-readonly">{{ getUsernameReadonlyLabel() }}</p>
 
       <div *ngIf="profileMessage" class="profile-message">
         {{ profileMessage }}
@@ -87,19 +90,19 @@
 
       <div class="profile-form-actions">
         <button type="button" class="ghost-btn" (click)="goBack()">
-          Retour
+          {{ i18n.t('common.actions.back') }}
         </button>
         <button type="button" class="primary-btn" (click)="saveProfile()" [disabled]="isSavingProfile">
-          {{ isSavingProfile ? 'Enregistrement...' : 'Enregistrer' }}
+          {{ isSavingProfile ? i18n.t('login.submit.wait') : i18n.t('common.actions.save') }}
         </button>
       </div>
 
       <div class="profile-shortcuts">
         <button *ngIf="!isAdmin" type="button" class="ghost-btn profile-shortcut" (click)="goToUpload()">
-          Ajouter des photos
+          {{ i18n.t('common.actions.addPhotos') }}
         </button>
         <button type="button" class="ghost-btn profile-shortcut" (click)="goToAlbum()">
-          Voir mon album
+          {{ i18n.t('common.actions.viewMyAlbum') }}
         </button>
       </div>
     </div>
@@ -108,8 +111,8 @@
   <section class="notifications-card">
     <div class="notifications-head">
       <div>
-        <p class="eyebrow">Notifications</p>
-        <h2>Identifications</h2>
+        <p class="eyebrow">{{ i18n.t('common.labels.notifications') }}</p>
+        <h2>{{ i18n.t('profile.notificationsTitle') }}</h2>
       </div>
 
       <button
@@ -118,7 +121,7 @@
         class="ghost-btn"
         (click)="markAllNotificationsRead()"
       >
-        Tout lire
+        {{ i18n.t('common.actions.markAllRead') }}
       </button>
     </div>
 
@@ -133,7 +136,7 @@
         <img
           class="notification-thumb"
           [src]="getNotificationThumbnailUrl(notification)"
-          [alt]="'Photo associée à la notification de ' + notification.actorDisplayName"
+          [attr.alt]="getNotificationText(notification)"
         />
 
         <div class="notification-copy">
@@ -141,12 +144,12 @@
             <img
               class="notification-author-avatar"
               [src]="getNotificationActorAvatarUrl(notification)"
-              [alt]="'Avatar de ' + notification.actorDisplayName"
+              [attr.alt]="i18n.t('common.avatarOf', { name: notification.actorDisplayName })"
             />
             <strong>{{ notification.actorDisplayName }}</strong>
           </div>
 
-          <p>{{ notification.actorDisplayName }} vous a identifié sur une photo.</p>
+          <p>{{ getNotificationText(notification) }}</p>
           <span>{{ notification.createdAt | date:'d MMMM yyyy, HH:mm' }}</span>
         </div>
 
@@ -156,7 +159,7 @@
 
     <ng-template #noNotifications>
       <div class="notifications-empty">
-        <p>Aucune notification pour le moment.</p>
+        <p>{{ i18n.t('profile.notificationsEmpty') }}</p>
       </div>
     </ng-template>
   </section>

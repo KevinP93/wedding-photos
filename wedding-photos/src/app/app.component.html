@@ -3,8 +3,8 @@
     <router-outlet />
   </main>
 
-  <footer class="app-footer" aria-label="Kevin et Gabriella">
-    <img class="app-footer__logo" src="assets/icons/KG_logo.png" alt="Kevin et Gabriella" />
+  <footer class="app-footer" [attr.aria-label]="i18n.t('common.brand')">
+    <img class="app-footer__logo" src="assets/icons/KG_logo.png" [attr.alt]="i18n.t('common.brand')" />
   </footer>
 </div>
 

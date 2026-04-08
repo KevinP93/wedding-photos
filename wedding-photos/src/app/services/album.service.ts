@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { SupabaseService } from './supabase.service';
 import { CloudinaryService } from './cloudinary.service';
+import { I18nService } from './i18n.service';
 
 export interface Photo {
   id: string;
@@ -52,7 +53,8 @@ export class AlbumService {
 
   constructor(
     private supabaseService: SupabaseService,
-    private cloudinaryService: CloudinaryService
+    private cloudinaryService: CloudinaryService,
+    private i18n: I18nService
   ) {}
 
   async ready(forceRefresh = false): Promise<void> {
@@ -84,12 +86,12 @@ export class AlbumService {
 
     const refreshedAlbumId = sessionStorage.getItem('currentAlbumId') || '';
     if (!refreshedAlbumId) {
-      throw new Error('Album utilisateur introuvable.');
+      throw new Error(this.i18n.t('supabase.albumNotFound'));
     }
 
     const album = this.getAlbum(refreshedAlbumId);
     if (!album) {
-      throw new Error('Album utilisateur introuvable.');
+      throw new Error(this.i18n.t('supabase.albumNotFound'));
     }
 
     return album;

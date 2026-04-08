@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PwaInstallComponent } from './components/pwa-install/pwa-install.component';
+import { I18nService } from './services/i18n.service';
 
 @Component({
   selector: 'app-root',
@@ -11,4 +12,6 @@ import { PwaInstallComponent } from './components/pwa-install/pwa-install.compon
 })
 export class AppComponent {
   title = 'wedding-photos';
+
+  constructor(public i18n: I18nService) {}
 }

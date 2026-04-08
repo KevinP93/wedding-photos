@@ -1,16 +1,18 @@
 <div class="upload-shell">
   <header class="upload-hero">
     <div class="hero-actions">
-      <button type="button" class="back-btn back-btn--icon hero-action" (click)="goBack()" aria-label="Retour">
+      <button type="button" class="back-btn back-btn--icon hero-action" (click)="goBack()" [attr.aria-label]="i18n.t('common.actions.back')">
         <span class="back-btn__chevron" aria-hidden="true"></span>
       </button>
+      <app-language-switcher />
       <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
-        Se déconnecter
+        {{ i18n.t('common.actions.logout') }}
       </button>
       <app-mobile-menu
         [currentGuest]="currentGuest"
         [currentUsername]="currentUsername"
         [currentAvatarUrl]="currentAvatarUrl"
+        [showAdd]="false"
         [unreadCount]="unreadNotificationCount"
         (profileRequested)="goToProfile()"
         (logoutRequested)="logout()"
@@ -18,8 +20,8 @@
     </div>
 
     <div class="hero-copy">
-      <p class="eyebrow">Mon album</p>
-      <h1>Ajouter</h1>
+      <p class="eyebrow">{{ i18n.t('upload.myAlbum') }}</p>
+      <h1>{{ i18n.t('upload.title') }}</h1>
       <p>{{ currentGuest }}</p>
     </div>
   </header>
@@ -44,9 +46,9 @@
       (drop)="onDrop($event)"
     >
       <span class="drop-zone__ornament"></span>
-      <span class="drop-zone__eyebrow">Ajouter</span>
-      <strong>Choisir dans la galerie</strong>
-      <p>Photos de votre téléphone.</p>
+      <span class="drop-zone__eyebrow">{{ i18n.t('common.actions.add') }}</span>
+      <strong>{{ i18n.t('upload.chooseFromGallery') }}</strong>
+      <p>{{ i18n.t('upload.phonePhotos') }}</p>
     </button>
 
     <div class="selection-error" *ngIf="selectionError">
@@ -59,8 +61,8 @@
 
     <div class="selection-head" *ngIf="selectedFiles.length > 0">
       <div>
-        <p class="section-eyebrow">Sélection</p>
-        <h2>{{ selectedFiles.length }} élément(s)</h2>
+        <p class="section-eyebrow">{{ i18n.t('common.labels.selection') }}</p>
+        <h2>{{ getSelectedCountLabel() }}</h2>
       </div>
     </div>
 
@@ -70,7 +72,7 @@
           <img
             *ngIf="selectedFile.type === 'image'; else selectedVideo"
             [src]="selectedFile.previewUrl"
-            [alt]="'Prévisualisation du fichier ' + selectedFile.file.name"
+            [attr.alt]="'Prévisualisation du fichier ' + selectedFile.file.name"
           />
 
           <ng-template #selectedVideo>
@@ -92,7 +94,7 @@
               (focus)="openTagPicker(selectedFile)"
               (blur)="closeTagPicker(selectedFile)"
               [disabled]="isUploading"
-              placeholder="Identifier un invité"
+              [placeholder]="i18n.t('upload.identifyGuest')"
             />
           </label>
 
@@ -104,11 +106,15 @@
                 class="tag-chip__remove"
                 (click)="removeTaggedGuest(selectedFile, guest.id, $event)"
                 [disabled]="isUploading"
-                aria-label="Retirer l'invité identifié"
+                [attr.aria-label]="i18n.t('upload.removeTaggedGuest')"
               >
                 ×
               </button>
             </span>
+          </div>
+
+          <div class="tag-summary" *ngIf="getTaggedGuestCount(selectedFile) > 0">
+            <span class="tag-chip">{{ getTaggedGuestsLabel(selectedFile) }}</span>
           </div>
 
           <div class="tag-picker" *ngIf="selectedFile.isTagPickerOpen && getMatchingGuests(selectedFile).length > 0">
@@ -121,7 +127,7 @@
               <img
                 class="tag-guest__avatar"
                 [src]="getGuestAvatarUrl(guest)"
-                [alt]="'Avatar de ' + guest.displayName"
+                [attr.alt]="i18n.t('common.avatarOf', { name: guest.displayName })"
               />
               <span class="tag-guest__name">{{ guest.displayName }}</span>
               <span class="tag-guest__check" aria-hidden="true">+</span>
@@ -135,43 +141,43 @@
           (click)="removeFile(index)"
           [disabled]="isUploading"
         >
-          Retirer
+          {{ i18n.t('common.actions.remove') }}
         </button>
       </article>
     </div>
 
     <div class="selection-bar" *ngIf="selectedFiles.length > 0">
       <button type="button" class="ghost-btn" (click)="clearSelectedFiles()" [disabled]="isUploading">
-        Tout retirer
+        {{ i18n.t('common.actions.unselectAll') }}
       </button>
       <button type="button" class="primary-btn" (click)="uploadFiles()" [disabled]="isUploading">
-        Envoyer dans mon album
+        {{ i18n.t('common.actions.sendToMyAlbum') }}
       </button>
     </div>
 
     <div class="progress-panel" *ngIf="isUploading">
       <div class="progress-head">
-        <strong>Envoi en cours</strong>
+        <strong>{{ i18n.t('upload.progressTitle') }}</strong>
         <span>{{ uploadProgress | number:'1.0-0' }}%</span>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" [style.width.%]="uploadProgress"></div>
       </div>
-      <p>Ajout en cours dans l'album {{ currentGuest }}.</p>
+      <p>{{ getProgressLabel() }}</p>
     </div>
 
     <div class="result-panel" *ngIf="!isUploading && (uploadResults.success > 0 || uploadResults.error > 0)">
       <div class="result-pill result-pill--success" *ngIf="uploadResults.success > 0">
-        {{ uploadResults.success }} ajouté(s)
+        {{ getSuccessLabel() }}
       </div>
       <div class="result-pill result-pill--error" *ngIf="uploadResults.error > 0">
-        {{ uploadResults.error }} erreur(s)
+        {{ getErrorLabel() }}
       </div>
       <div class="result-pill result-pill--warning" *ngIf="taggingWarningMessage">
         {{ taggingWarningMessage }}
       </div>
       <button type="button" class="ghost-btn" (click)="goBack()">
-        Retour
+        {{ i18n.t('common.actions.back') }}
       </button>
     </div>
   </section>

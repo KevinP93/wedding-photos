@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { SupabaseClient, User, createClient } from '@supabase/supabase-js';
 import { environment } from '../../environments/environment';
+import { I18nService } from './i18n.service';
 
 export interface AppUser {
   id: string;
@@ -60,7 +61,7 @@ export class SupabaseService {
   private readonly loginEmailDomain = 'wedding-photos.example.com';
   private readonly legacyLoginEmailDomain = 'wedding.local';
 
-  constructor() {
+  constructor(private i18n: I18nService) {
     this.client = createClient(
       environment.supabase.url,
       environment.supabase.publishableKey,
@@ -84,11 +85,11 @@ export class SupabaseService {
     const displayName = payload.displayName.trim();
 
     if (!normalizedUsername) {
-      throw new Error('Choisissez un nom utilisateur valide.');
+      throw new Error(this.i18n.t('supabase.invalidUsername'));
     }
 
     if (!displayName) {
-      throw new Error('Entrez un nom à afficher dans la galerie.');
+      throw new Error(this.i18n.t('supabase.enterDisplayNameGallery'));
     }
 
     const { data, error } = await this.client.auth.signUp({
@@ -107,9 +108,7 @@ export class SupabaseService {
     }
 
     if (!data.session) {
-      throw new Error(
-        'La confirmation email Supabase doit être désactivée pour cette application.'
-      );
+      throw new Error(this.i18n.t('supabase.disableEmailConfirmation'));
     }
 
     return this.getRequiredCurrentUser();
@@ -118,7 +117,7 @@ export class SupabaseService {
   async signInWithUsername(username: string, password: string): Promise<AppUser> {
     const normalizedUsername = this.normalizeUsername(username);
     if (!normalizedUsername) {
-      throw new Error('Entrez un nom utilisateur valide.');
+      throw new Error(this.i18n.t('supabase.enterUsername'));
     }
 
     let errorMessage = '';
@@ -165,7 +164,7 @@ export class SupabaseService {
     }
 
     if (!authData.user) {
-      throw new Error('Session utilisateur introuvable.');
+      throw new Error(this.i18n.t('supabase.sessionMissing'));
     }
 
     const currentUser = await this.getRequiredCurrentUser();
@@ -174,11 +173,11 @@ export class SupabaseService {
     const avatarUrl = payload.avatarUrl?.trim() || null;
 
     if (!normalizedUsername) {
-      throw new Error('Choisissez un nom utilisateur valide.');
+      throw new Error(this.i18n.t('supabase.invalidUsername'));
     }
 
     if (!displayName) {
-      throw new Error('Entrez un nom à afficher.');
+      throw new Error(this.i18n.t('supabase.enterDisplayName'));
     }
 
     const attributes: {
@@ -554,7 +553,7 @@ export class SupabaseService {
   private async getRequiredCurrentUser(): Promise<AppUser> {
     const currentUser = await this.getCurrentAppUser();
     if (!currentUser) {
-      throw new Error('Session utilisateur introuvable.');
+      throw new Error(this.i18n.t('supabase.sessionMissing'));
     }
 
     return currentUser;
@@ -567,7 +566,7 @@ export class SupabaseService {
     }
 
     if (!data.user) {
-      throw new Error('Connexion requise.');
+      throw new Error(this.i18n.t('supabase.authRequired'));
     }
 
     return data.user.id;
@@ -606,7 +605,7 @@ export class SupabaseService {
       await this.sleep(150);
     }
 
-    throw new Error('Profil utilisateur introuvable.');
+    throw new Error(this.i18n.t('supabase.profileNotFound'));
   }
 
   private async waitForAlbum(userId: string): Promise<AlbumRow> {
@@ -628,33 +627,33 @@ export class SupabaseService {
       await this.sleep(150);
     }
 
-    throw new Error('Album utilisateur introuvable.');
+    throw new Error(this.i18n.t('supabase.albumNotFound'));
   }
 
   private toFriendlyError(message: string): Error {
     const normalized = message.toLowerCase();
 
     if (normalized.includes('user already registered')) {
-      return new Error('Ce nom utilisateur existe déjà.');
+      return new Error(this.i18n.t('supabase.usernameExists'));
     }
 
     if (normalized.includes('email address already in use')) {
-      return new Error('Ce nom utilisateur existe déjà.');
+      return new Error(this.i18n.t('supabase.usernameExists'));
     }
 
     if (normalized.includes('invalid login credentials')) {
-      return new Error('Nom utilisateur ou mot de passe incorrect.');
+      return new Error(this.i18n.t('supabase.invalidCredentials'));
     }
 
     if (normalized.includes('password should be at least')) {
-      return new Error('Le mot de passe doit contenir au moins 6 caractères.');
+      return new Error(this.i18n.t('supabase.passwordTooShort'));
     }
 
     if (normalized.includes('signup is disabled')) {
-      return new Error('Les inscriptions Supabase sont actuellement désactivées.');
+      return new Error(this.i18n.t('supabase.signupDisabled'));
     }
 
-    return new Error(message || 'Opération Supabase impossible pour le moment.');
+    return new Error(message || this.i18n.t('supabase.genericError'));
   }
 
   private sleep(durationMs: number): Promise<void> {

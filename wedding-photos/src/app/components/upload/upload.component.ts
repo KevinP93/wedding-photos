@@ -1,12 +1,14 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { AlbumService, Photo } from '../../services/album.service';
 import { SupabaseService, TaggableGuest } from '../../services/supabase.service';
 import { NotificationService } from '../../services/notification.service';
+import { I18nService } from '../../services/i18n.service';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
-import { Subscription } from 'rxjs';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 import { buildAvatarUrl } from '../../utils/avatar';
 
 interface SelectedMedia {
@@ -21,7 +23,7 @@ interface SelectedMedia {
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [CommonModule, MobileMenuComponent],
+  imports: [CommonModule, MobileMenuComponent, LanguageSwitcherComponent],
   templateUrl: './upload.component.html',
   styleUrl: './upload.component.scss'
 })
@@ -49,7 +51,8 @@ export class UploadComponent implements OnInit, OnDestroy {
     private albumService: AlbumService,
     private supabaseService: SupabaseService,
     private notificationService: NotificationService,
-    private router: Router
+    private router: Router,
+    public i18n: I18nService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -94,7 +97,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     const rejectedCount = files.length - imageFiles.length;
 
     this.selectionError = rejectedCount > 0
-      ? 'Seules les photos sont autorisées.'
+      ? this.i18n.t('upload.onlyPhotosAllowed')
       : '';
 
     if (imageFiles.length === 0) {
@@ -239,7 +242,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     if (taggingFailures > 0) {
-      this.taggingWarningMessage = 'Certaines identifications n’ont pas pu être enregistrées.';
+      this.taggingWarningMessage = this.i18n.t('upload.taggingSaveWarning');
     }
   }
 
@@ -275,7 +278,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   getFileTypeLabel(selectedFile: SelectedMedia): string {
-    return selectedFile.type === 'video' ? 'Video' : 'Photo';
+    return selectedFile.type === 'video' ? 'Video' : this.i18n.t('upload.photoLabel');
   }
 
   openTagPicker(selectedFile: SelectedMedia): void {
@@ -325,10 +328,6 @@ export class UploadComponent implements OnInit, OnDestroy {
     selectedFile.taggedUserIds = selectedFile.taggedUserIds.filter(id => id !== guestId);
   }
 
-  isGuestTagged(selectedFile: SelectedMedia, guestId: string): boolean {
-    return selectedFile.taggedUserIds.includes(guestId);
-  }
-
   getTaggedGuestCount(selectedFile: SelectedMedia): number {
     return selectedFile.taggedUserIds.length;
   }
@@ -356,6 +355,28 @@ export class UploadComponent implements OnInit, OnDestroy {
     return buildAvatarUrl(guest.avatarUrl, guest.displayName, guest.username);
   }
 
+  getSelectedCountLabel(): string {
+    return this.i18n.tc('counts.item', this.selectedFiles.length);
+  }
+
+  getTaggedGuestsLabel(selectedFile: SelectedMedia): string {
+    return this.i18n.t('upload.identifiedGuests', {
+      count: this.getTaggedGuestCount(selectedFile)
+    });
+  }
+
+  getProgressLabel(): string {
+    return this.i18n.t('upload.progressAlbum', { name: this.currentGuest });
+  }
+
+  getSuccessLabel(): string {
+    return this.i18n.t('upload.added', { count: this.uploadResults.success });
+  }
+
+  getErrorLabel(): string {
+    return this.i18n.t('upload.errors', { count: this.uploadResults.error });
+  }
+
   private extractFiles(event: Event | DragEvent): File[] {
     if (event instanceof DragEvent && event.dataTransfer?.files?.length) {
       return Array.from(event.dataTransfer.files);
@@ -376,7 +397,7 @@ export class UploadComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Impossible de charger les invités à identifier :', error);
       this.taggableGuests = [];
-      this.taggableGuestsError = 'Impossible de charger la liste des invités pour l’identification.';
+      this.taggableGuestsError = this.i18n.t('upload.taggingLoadError');
     }
   }
 

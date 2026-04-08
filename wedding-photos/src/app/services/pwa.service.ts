@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { SwUpdate, VersionReadyEvent } from '@angular/service-worker';
 import { filter, map } from 'rxjs/operators';
+import { I18nService } from './i18n.service';
 
 type DeferredInstallPrompt = Event & {
   prompt: () => Promise<void>;
@@ -16,7 +17,7 @@ export class PwaService {
   private promptEvent: DeferredInstallPrompt | null = null;
   private readonly dismissStorageKey = 'pwa-install-dismissed';
 
-  constructor(private swUpdate: SwUpdate) {
+  constructor(private swUpdate: SwUpdate, private i18n: I18nService) {
     if (swUpdate.isEnabled) {
       swUpdate.versionUpdates
         .pipe(
@@ -24,7 +25,7 @@ export class PwaService {
           map(evt => evt.latestVersion)
         )
         .subscribe(() => {
-          if (confirm('Une nouvelle version est disponible. Voulez-vous la charger ?')) {
+          if (confirm(this.i18n.t('pwa.updateAvailable'))) {
             window.location.reload();
           }
         });

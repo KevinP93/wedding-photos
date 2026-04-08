@@ -7,13 +7,15 @@ import { AlbumService, Album } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { NotificationService } from '../../services/notification.service';
+import { I18nService } from '../../services/i18n.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
+import { LanguageSwitcherComponent } from '../language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-gallery',
   standalone: true,
-  imports: [CommonModule, FormsModule, MobileMenuComponent],
+  imports: [CommonModule, FormsModule, MobileMenuComponent, LanguageSwitcherComponent],
   templateUrl: './gallery.component.html',
   styleUrl: './gallery.component.scss'
 })
@@ -37,13 +39,15 @@ export class GalleryComponent implements OnInit, OnDestroy {
   adminMessage = '';
   unreadNotificationCount = 0;
   private notificationSubscription?: Subscription;
+  private albumsSubscription?: Subscription;
 
   constructor(
     private albumService: AlbumService,
     private router: Router,
     private cloudinaryService: CloudinaryService,
     private supabaseService: SupabaseService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    public i18n: I18nService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -68,7 +72,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
       this.unreadNotificationCount = count;
     });
 
-    this.albumService.albums$.subscribe(albums => {
+    this.albumsSubscription = this.albumService.albums$.subscribe(albums => {
       this.albums = albums;
       this.refreshAlbumCollections();
     });
@@ -76,6 +80,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.notificationSubscription?.unsubscribe();
+    this.albumsSubscription?.unsubscribe();
   }
 
   @HostListener('window:resize')
@@ -122,7 +127,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
       ? album.photos[album.photos.length - 1].uploadedAt
       : album.createdAt;
 
-    return new Intl.DateTimeFormat('fr-FR', {
+    return new Intl.DateTimeFormat(this.i18n.currentLanguage === 'pt' ? 'pt-PT' : 'fr-FR', {
       day: 'numeric',
       month: 'long'
     }).format(this.toDate(sourceDate));
@@ -130,6 +135,14 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
   getPhotoCount(album: Album): number {
     return album.photos.length;
+  }
+
+  getPhotoCountLabel(album: Album): string {
+    return this.i18n.tc('counts.photo', this.getPhotoCount(album));
+  }
+
+  getMemoryCountLabel(album: Album): string {
+    return this.i18n.tc('counts.memory', this.getPhotoCount(album));
   }
 
   getTotalPhotoCount(): number {
@@ -143,14 +156,39 @@ export class GalleryComponent implements OnInit, OnDestroy {
   getSearchResultLabel(): string {
     const count = this.filteredOtherAlbums.length;
     if (count === 0) {
-      return this.searchQuery.trim() ? 'Aucun résultat' : 'Aucun album';
+      return this.searchQuery.trim()
+        ? this.i18n.t('gallery.result.none')
+        : this.i18n.t('gallery.result.noAlbum');
     }
 
     if (!this.searchQuery.trim()) {
-      return `${count} album${count > 1 ? 's' : ''}`;
+      return this.i18n.tc('counts.album', count);
     }
 
-    return `${count} résultat${count > 1 ? 's' : ''}`;
+    return this.i18n.tc('counts.result', count);
+  }
+
+  getAlbumKicker(album: Album, isOwnAlbum = false): string {
+    if (this.isFeaturedAlbum(album)) {
+      return this.i18n.t('gallery.featuredAlbum');
+    }
+
+    return isOwnAlbum
+      ? this.i18n.t('gallery.personalAlbum')
+      : this.i18n.t('gallery.guest');
+  }
+
+  getAlbumUpdatedLabel(album: Album, isOwnAlbum = false): string {
+    return this.i18n.t(isOwnAlbum ? 'gallery.lastAddedOn' : 'gallery.updatedOn', {
+      date: this.getAlbumMomentLabel(album)
+    });
+  }
+
+  getPaginationLabel(): string {
+    return this.i18n.t('gallery.page', {
+      current: this.currentPage,
+      total: this.totalPages
+    });
   }
 
   hasActiveSearch(): boolean {
@@ -201,14 +239,11 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }
 
     if (album.photos.length === 0) {
-      this.adminMessage = `L'album "${album.name}" est déjà vide.`;
+      this.adminMessage = this.i18n.t('gallery.admin.alreadyEmpty', { name: album.name });
       return;
     }
 
-    const confirmed = confirm(
-      `Vider l'album "${album.name}" ? Toutes les photos seront supprimées, mais l'album restera disponible pour l'utilisateur.`
-    );
-
+    const confirmed = confirm(this.i18n.t('gallery.admin.confirmEmpty', { name: album.name }));
     if (!confirmed) {
       return;
     }
@@ -229,10 +264,10 @@ export class GalleryComponent implements OnInit, OnDestroy {
         await this.albumService.removePhotoFromAlbum(album.id, photo.id);
       }
 
-      this.adminMessage = `L'album "${album.name}" a été vidé.`;
+      this.adminMessage = this.i18n.t('gallery.admin.emptied', { name: album.name });
     } catch (error) {
       console.error('Erreur lors du vidage de l\'album:', error);
-      this.adminMessage = 'Impossible de vider l\'album pour le moment.';
+      this.adminMessage = this.i18n.t('gallery.admin.emptyError');
     }
   }
 

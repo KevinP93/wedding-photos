@@ -5,7 +5,7 @@
     [class.mobile-menu__toggle--open]="isOpen"
     (click)="toggleMenu()"
     [attr.aria-expanded]="isOpen"
-    aria-label="Ouvrir le menu"
+    [attr.aria-label]="i18n.t('menu.open')"
   >
     <span class="mobile-menu__badge" *ngIf="unreadCount > 0">
       {{ unreadCount > 9 ? '9+' : unreadCount }}
@@ -17,34 +17,44 @@
 
   <div *ngIf="isOpen" class="mobile-menu__backdrop" (click)="closeMenu()"></div>
 
-  <aside *ngIf="isOpen" class="mobile-menu__panel" role="dialog" aria-modal="true" aria-label="Navigation mobile">
+  <aside
+    *ngIf="isOpen"
+    class="mobile-menu__panel"
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="i18n.t('menu.navigation')"
+  >
     <div class="mobile-menu__header">
-      <img class="mobile-menu__avatar" [src]="avatarUrl" [alt]="'Photo de profil de ' + currentGuest" />
+      <img class="mobile-menu__avatar" [src]="avatarUrl" [alt]="i18n.t('common.avatarOf', { name: currentGuest })" />
 
       <div class="mobile-menu__copy">
         <strong>{{ currentGuest }}</strong>
-        <span>Menu mariage</span>
+        <span>{{ i18n.t('common.labels.menuWedding') }}</span>
       </div>
 
-      <button type="button" class="mobile-menu__close" (click)="closeMenu()" aria-label="Fermer le menu">
+      <button type="button" class="mobile-menu__close" (click)="closeMenu()" [attr.aria-label]="i18n.t('menu.close')">
         x
       </button>
     </div>
 
     <nav class="mobile-menu__links">
       <a routerLink="/gallery" class="mobile-menu__link" (click)="closeMenu()">
-        Accueil
+        {{ i18n.t('menu.home') }}
       </a>
 
+      <button *ngIf="showAdd" type="button" class="mobile-menu__link" (click)="openAdd()">
+        {{ i18n.t('common.actions.addPhotos') }}
+      </button>
+
       <button *ngIf="showProfile" type="button" class="mobile-menu__link mobile-menu__link--with-badge" (click)="openProfile()">
-        <span>Profil</span>
+        <span>{{ i18n.t('menu.profile') }}</span>
         <span class="mobile-menu__link-badge" *ngIf="unreadCount > 0">
           {{ unreadCount > 9 ? '9+' : unreadCount }}
         </span>
       </button>
 
       <button type="button" class="mobile-menu__link mobile-menu__link--danger" (click)="logout()">
-        Se déconnecter
+        {{ i18n.t('common.actions.logout') }}
       </button>
     </nav>
   </aside>
