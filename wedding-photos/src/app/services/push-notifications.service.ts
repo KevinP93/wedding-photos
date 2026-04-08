@@ -65,6 +65,10 @@ export class PushNotificationsService {
   }
 
   async enablePushNotifications(): Promise<void> {
+    if (this.requiresIosHomeScreenInstall()) {
+      throw new Error(this.i18n.t('profile.pushIosHomeScreenRequired'));
+    }
+
     if (!this.isSupported()) {
       throw new Error(this.i18n.t('profile.pushUnsupported'));
     }
@@ -147,6 +151,20 @@ export class PushNotificationsService {
       && 'serviceWorker' in navigator
       && 'PushManager' in window
       && 'Notification' in window;
+  }
+
+  private requiresIosHomeScreenInstall(): boolean {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return false;
+    }
+
+    const userAgent = navigator.userAgent || '';
+    const isIos = /iphone|ipad|ipod/i.test(userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || (typeof (navigator as Navigator & { standalone?: boolean }).standalone === 'boolean'
+        && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+
+    return isIos && !isStandalone;
   }
 
   private getPermissionState(): NotificationPermission | 'unsupported' {
