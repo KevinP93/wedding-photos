@@ -11,6 +11,7 @@
         [currentGuest]="currentGuest"
         [currentUsername]="currentUsername"
         [currentAvatarUrl]="currentAvatarUrl"
+        [unreadCount]="unreadNotificationCount"
         (profileRequested)="goToProfile()"
         (logoutRequested)="logout()"
       />
@@ -52,6 +53,10 @@
       {{ selectionError }}
     </div>
 
+    <div class="selection-error" *ngIf="taggableGuestsError">
+      {{ taggableGuestsError }}
+    </div>
+
     <div class="selection-head" *ngIf="selectedFiles.length > 0">
       <div>
         <p class="section-eyebrow">Sélection</p>
@@ -76,6 +81,52 @@
         <div class="preview-meta">
           <span class="media-type">{{ getFileTypeLabel(selectedFile) }}</span>
           <p>{{ getFileSize(selectedFile.file.size) }}</p>
+        </div>
+
+        <div class="tag-panel" *ngIf="taggableGuests.length > 0">
+          <label class="tag-search" [class.tag-search--open]="selectedFile.isTagPickerOpen">
+            <input
+              type="text"
+              [value]="selectedFile.tagQuery"
+              (input)="onTagQueryChange(selectedFile, $any($event.target).value)"
+              (focus)="openTagPicker(selectedFile)"
+              (blur)="closeTagPicker(selectedFile)"
+              [disabled]="isUploading"
+              placeholder="Identifier un invité"
+            />
+          </label>
+
+          <div class="tag-summary" *ngIf="getTaggedGuestCount(selectedFile) > 0">
+            <span class="tag-chip" *ngFor="let guest of getTaggedGuests(selectedFile)">
+              {{ guest.displayName }}
+              <button
+                type="button"
+                class="tag-chip__remove"
+                (click)="removeTaggedGuest(selectedFile, guest.id, $event)"
+                [disabled]="isUploading"
+                aria-label="Retirer l'invité identifié"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+
+          <div class="tag-picker" *ngIf="selectedFile.isTagPickerOpen && getMatchingGuests(selectedFile).length > 0">
+            <button
+              type="button"
+              class="tag-guest"
+              *ngFor="let guest of getMatchingGuests(selectedFile)"
+              (mousedown)="selectTaggedGuest(selectedFile, guest.id, $event)"
+            >
+              <img
+                class="tag-guest__avatar"
+                [src]="getGuestAvatarUrl(guest)"
+                [alt]="'Avatar de ' + guest.displayName"
+              />
+              <span class="tag-guest__name">{{ guest.displayName }}</span>
+              <span class="tag-guest__check" aria-hidden="true">+</span>
+            </button>
+          </div>
         </div>
 
         <button
@@ -115,6 +166,9 @@
       </div>
       <div class="result-pill result-pill--error" *ngIf="uploadResults.error > 0">
         {{ uploadResults.error }} erreur(s)
+      </div>
+      <div class="result-pill result-pill--warning" *ngIf="taggingWarningMessage">
+        {{ taggingWarningMessage }}
       </div>
       <button type="button" class="ghost-btn" (click)="goBack()">
         Retour

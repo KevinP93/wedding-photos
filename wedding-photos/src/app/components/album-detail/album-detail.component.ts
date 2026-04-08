@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { AlbumService, Album, Photo } from '../../services/album.service';
+import { AlbumService, Album, Photo, PhotoTaggedUser } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { PwaService } from '../../services/pwa.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { NotificationService } from '../../services/notification.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
 
@@ -25,6 +26,7 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   currentAlbumId = '';
   currentAvatarUrl = '';
   isAdmin = false;
+  unreadNotificationCount = 0;
   adminMessage = '';
   viewerHint = '';
   selectedIndex = -1;
@@ -43,6 +45,11 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   private lastTapPhotoId = '';
   private readonly preservedGridPhotoIds = new Set<string>();
   private albumSubscription?: Subscription;
+  private notificationSubscription?: Subscription;
+  private queryParamSubscription?: Subscription;
+  private routeParamSubscription?: Subscription;
+  private pendingPhotoId = '';
+  private routeAlbumId = '';
 
   constructor(
     private albumService: AlbumService,
@@ -50,7 +57,8 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private cloudinaryService: CloudinaryService,
     private pwaService: PwaService,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private notificationService: NotificationService
   ) {}
 
   get selectedPhoto(): Photo | undefined {
@@ -74,57 +82,35 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const albumId = this.route.snapshot.paramMap.get('id');
-    if (!albumId) {
-      this.router.navigate(['/gallery']);
-      return;
-    }
-
     await this.albumService.ready(true);
-    this.album = this.albumService.getAlbum(albumId);
-    if (!this.album) {
-      this.router.navigate(['/gallery']);
-      return;
-    }
+    await this.notificationService.ready();
+
+    this.pendingPhotoId = this.route.snapshot.queryParamMap.get('photo') || '';
+    this.notificationSubscription = this.notificationService.unreadCount$.subscribe(count => {
+      this.unreadNotificationCount = count;
+    });
+    this.queryParamSubscription = this.route.queryParamMap.subscribe(params => {
+      this.pendingPhotoId = params.get('photo') || '';
+      this.openPendingPhotoIfNeeded();
+    });
+    this.routeParamSubscription = this.route.paramMap.subscribe(params => {
+      this.routeAlbumId = params.get('id') || '';
+      this.syncAlbumState();
+    });
 
     this.albumSubscription = this.albumService.albums$.subscribe(albums => {
-      const nextAlbum = albums.find(item => item.id === albumId);
-      if (!nextAlbum) {
-        this.router.navigate(['/gallery']);
-        return;
-      }
-
-      const selectedPhotoId = this.selectedPhoto?.id || '';
-      const availablePhotoIds = new Set(nextAlbum.photos.map(photo => photo.id));
-
-      for (const photoId of Array.from(this.selectedPhotoIds)) {
-        if (!availablePhotoIds.has(photoId)) {
-          this.selectedPhotoIds.delete(photoId);
-        }
-      }
-
-      this.album = nextAlbum;
-
-      if (!nextAlbum.photos.length && this.selectionMode) {
-        this.toggleSelectionMode();
-      }
-
-      if (!selectedPhotoId) {
-        return;
-      }
-
-      const nextSelectedIndex = nextAlbum.photos.findIndex(photo => photo.id === selectedPhotoId);
-      if (nextSelectedIndex === -1) {
-        this.closeViewer();
-        return;
-      }
-
-      this.selectedIndex = nextSelectedIndex;
+      void albums;
+      this.syncAlbumState();
     });
+
+    this.openPendingPhotoIfNeeded();
   }
 
   ngOnDestroy(): void {
     this.albumSubscription?.unsubscribe();
+    this.notificationSubscription?.unsubscribe();
+    this.queryParamSubscription?.unsubscribe();
+    this.routeParamSubscription?.unsubscribe();
   }
 
   @HostListener('document:keydown.escape')
@@ -164,7 +150,7 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
   }
 
   goToProfile(): void {
-    this.router.navigate(['/gallery'], { queryParams: { profile: '1' } });
+    this.router.navigate(['/profile']);
   }
 
   async logout(): Promise<void> {
@@ -589,8 +575,101 @@ export class AlbumDetailComponent implements OnInit, OnDestroy {
       : { likes: 0, downloads: 0 };
   }
 
+  hasTaggedUsers(photo: Photo): boolean {
+    return photo.taggedUsers.length > 0;
+  }
+
+  async goToTaggedUserAlbum(taggedUser: PhotoTaggedUser, event?: Event): Promise<void> {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    const targetAlbum = this.albumService.getAlbumByOwnerId(taggedUser.userId)
+      || this.albumService.getAlbumByUserName(taggedUser.username)
+      || this.albumService.getAlbumByUserName(taggedUser.displayName);
+
+    if (!targetAlbum) {
+      return;
+    }
+
+    this.closeViewer();
+    await this.router.navigate(['/album', targetAlbum.id]);
+  }
+
   trackByPhotoId(_: number, photo: Photo): string {
     return photo.id;
+  }
+
+  private openPendingPhotoIfNeeded(): void {
+    if (!this.album || !this.pendingPhotoId) {
+      return;
+    }
+
+    const index = this.album.photos.findIndex(photo => photo.id === this.pendingPhotoId);
+    if (index === -1) {
+      return;
+    }
+
+    this.viewPhoto(index);
+    this.pendingPhotoId = '';
+
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { photo: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
+  }
+
+  private syncAlbumState(): void {
+    if (!this.routeAlbumId) {
+      this.router.navigate(['/gallery']);
+      return;
+    }
+
+    const nextAlbum = this.albumService.getAlbum(this.routeAlbumId);
+    if (!nextAlbum) {
+      this.router.navigate(['/gallery']);
+      return;
+    }
+
+    const previousAlbumId = this.album?.id || '';
+    const selectedPhotoId = this.selectedPhoto?.id || '';
+    const availablePhotoIds = new Set(nextAlbum.photos.map(photo => photo.id));
+
+    for (const photoId of Array.from(this.selectedPhotoIds)) {
+      if (!availablePhotoIds.has(photoId)) {
+        this.selectedPhotoIds.delete(photoId);
+      }
+    }
+
+    this.album = nextAlbum;
+
+    if (previousAlbumId && previousAlbumId !== nextAlbum.id) {
+      this.adminMessage = '';
+      this.selectionMessage = '';
+      this.selectionError = '';
+      this.resetSelectionState();
+      this.closeViewer();
+    }
+
+    if (!nextAlbum.photos.length && this.selectionMode) {
+      this.toggleSelectionMode();
+    }
+
+    if (!selectedPhotoId) {
+      this.openPendingPhotoIfNeeded();
+      return;
+    }
+
+    const nextSelectedIndex = nextAlbum.photos.findIndex(photo => photo.id === selectedPhotoId);
+    if (nextSelectedIndex === -1) {
+      this.closeViewer();
+      this.openPendingPhotoIfNeeded();
+      return;
+    }
+
+    this.selectedIndex = nextSelectedIndex;
+    this.openPendingPhotoIfNeeded();
   }
 
   private refreshAlbum(): void {

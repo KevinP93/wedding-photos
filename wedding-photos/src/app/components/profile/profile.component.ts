@@ -1,0 +1,281 @@
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { AlbumService, Album } from '../../services/album.service';
+import { CloudinaryService } from '../../services/cloudinary.service';
+import { NotificationService } from '../../services/notification.service';
+import { PhotoTagNotification, SupabaseService } from '../../services/supabase.service';
+import { buildAvatarUrl } from '../../utils/avatar';
+import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
+
+@Component({
+  selector: 'app-profile',
+  standalone: true,
+  imports: [CommonModule, FormsModule, MobileMenuComponent],
+  templateUrl: './profile.component.html',
+  styleUrl: './profile.component.scss'
+})
+export class ProfileComponent implements OnInit, OnDestroy {
+  currentUserId = '';
+  currentGuest = '';
+  currentUsername = '';
+  currentAlbumId = '';
+  currentAvatarUrl = '';
+  isAdmin = false;
+  unreadNotificationCount = 0;
+  isSavingProfile = false;
+  profileDisplayName = '';
+  profileAvatarUrl = '';
+  profileMessage = '';
+  profileErrorMessage = '';
+  currentAlbum?: Album;
+  notifications: PhotoTagNotification[] = [];
+  private selectedProfileImage: File | null = null;
+  private profilePreviewObjectUrl = '';
+  private notificationsSubscription?: Subscription;
+  private unreadCountSubscription?: Subscription;
+
+  constructor(
+    private albumService: AlbumService,
+    private cloudinaryService: CloudinaryService,
+    private supabaseService: SupabaseService,
+    private notificationService: NotificationService,
+    private router: Router
+  ) {}
+
+  async ngOnInit(): Promise<void> {
+    this.currentUserId = sessionStorage.getItem('currentUserId') || '';
+    this.currentGuest = sessionStorage.getItem('currentGuest') || '';
+    this.currentUsername = sessionStorage.getItem('currentUsername') || '';
+    this.currentAlbumId = sessionStorage.getItem('currentAlbumId') || '';
+    this.currentAvatarUrl = sessionStorage.getItem('currentAvatarUrl') || '';
+    this.isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+
+    if (!this.currentUserId || !this.currentGuest || !this.currentUsername) {
+      this.clearSession();
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    await this.albumService.ready(true);
+    await this.notificationService.ready(true);
+    this.currentAlbum = this.currentAlbumId
+      ? this.albumService.getAlbum(this.currentAlbumId)
+      : undefined;
+    this.resetProfileForm();
+
+    this.notificationsSubscription = this.notificationService.notifications$.subscribe(notifications => {
+      this.notifications = notifications;
+    });
+
+    this.unreadCountSubscription = this.notificationService.unreadCount$.subscribe(count => {
+      this.unreadNotificationCount = count;
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.notificationsSubscription?.unsubscribe();
+    this.unreadCountSubscription?.unsubscribe();
+    this.revokeProfilePreview();
+  }
+
+  goBack(): void {
+    this.router.navigate(['/gallery']);
+  }
+
+  goToAlbum(): void {
+    if (!this.currentAlbumId) {
+      return;
+    }
+
+    this.router.navigate(['/album', this.currentAlbumId]);
+  }
+
+  goToUpload(): void {
+    if (this.isAdmin) {
+      return;
+    }
+
+    this.router.navigate(['/upload']);
+  }
+
+  async logout(): Promise<void> {
+    try {
+      await this.supabaseService.signOut();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    } finally {
+      this.clearSession();
+      this.router.navigate(['/login']);
+    }
+  }
+
+  getAvatarUrl(avatarUrl: string, displayName: string, username: string): string {
+    return buildAvatarUrl(avatarUrl, displayName, username);
+  }
+
+  getOwnPhotoCount(): number {
+    return this.currentAlbum?.photos.length || 0;
+  }
+
+  getOwnLikeCount(): number {
+    return (this.currentAlbum?.photos || []).reduce((sum, photo) => sum + photo.likes.length, 0);
+  }
+
+  getNotificationThumbnailUrl(notification: PhotoTagNotification): string {
+    return this.cloudinaryService.getGalleryMediaUrl(
+      notification.photoPublicId,
+      notification.photoType,
+      notification.photoUrl
+    );
+  }
+
+  getNotificationActorAvatarUrl(notification: PhotoTagNotification): string {
+    return buildAvatarUrl(
+      notification.actorAvatarUrl,
+      notification.actorDisplayName,
+      notification.actorUsername
+    );
+  }
+
+  trackByNotificationId(_: number, notification: PhotoTagNotification): string {
+    return notification.id;
+  }
+
+  onProfileImageSelected(event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    const file = input?.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      this.profileErrorMessage = 'Choisissez une image.';
+      return;
+    }
+
+    this.profileErrorMessage = '';
+    this.selectedProfileImage = file;
+    this.revokeProfilePreview();
+    this.profilePreviewObjectUrl = URL.createObjectURL(file);
+    this.profileAvatarUrl = this.profilePreviewObjectUrl;
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  resetProfileImage(): void {
+    this.selectedProfileImage = null;
+    this.revokeProfilePreview();
+    this.profileAvatarUrl = '';
+  }
+
+  async openNotification(notification: PhotoTagNotification): Promise<void> {
+    try {
+      if (!notification.isRead) {
+        await this.notificationService.markNotificationRead(notification.id);
+      }
+    } catch (error) {
+      console.error('Impossible de marquer la notification comme lue :', error);
+    }
+
+    await this.router.navigate(['/album', notification.albumId], {
+      queryParams: { photo: notification.photoId }
+    });
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    try {
+      await this.notificationService.markAllAsRead();
+    } catch (error) {
+      console.error('Impossible de marquer les notifications comme lues :', error);
+    }
+  }
+
+  async saveProfile(): Promise<void> {
+    this.profileErrorMessage = '';
+    this.profileMessage = '';
+
+    const displayName = this.profileDisplayName.trim();
+    if (!displayName) {
+      this.profileErrorMessage = 'Entrez votre nom.';
+      return;
+    }
+
+    this.isSavingProfile = true;
+
+    try {
+      let avatarUrl = this.profileAvatarUrl || '';
+
+      if (this.selectedProfileImage) {
+        const result = await this.cloudinaryService.uploadFile(
+          this.selectedProfileImage,
+          `wedding-profiles/${this.currentUserId}`
+        );
+        avatarUrl = result.secure_url;
+      }
+
+      const updatedUser = await this.supabaseService.updateCurrentProfile({
+        displayName,
+        username: this.currentUsername,
+        avatarUrl
+      });
+
+      this.currentGuest = updatedUser.displayName;
+      this.currentUsername = updatedUser.username;
+      this.currentAlbumId = updatedUser.albumId;
+      this.currentAvatarUrl = updatedUser.avatarUrl || '';
+      this.isAdmin = updatedUser.role === 'admin';
+
+      sessionStorage.setItem('currentUserId', updatedUser.id);
+      sessionStorage.setItem('currentGuest', updatedUser.displayName);
+      sessionStorage.setItem('currentUsername', updatedUser.username);
+      sessionStorage.setItem('currentAlbumId', updatedUser.albumId);
+      sessionStorage.setItem('currentAvatarUrl', updatedUser.avatarUrl || '');
+      sessionStorage.setItem('isAdmin', String(updatedUser.role === 'admin'));
+
+      await this.albumService.refreshSharedAlbums();
+      this.currentAlbum = this.currentAlbumId
+        ? this.albumService.getAlbum(this.currentAlbumId)
+        : undefined;
+      this.resetProfileForm();
+      this.profileMessage = 'Profil mis à jour.';
+    } catch (error) {
+      this.profileErrorMessage = error instanceof Error
+        ? error.message
+        : 'Impossible de mettre à jour le profil.';
+    } finally {
+      this.isSavingProfile = false;
+      this.revokeProfilePreview();
+    }
+  }
+
+  private resetProfileForm(): void {
+    this.selectedProfileImage = null;
+    this.revokeProfilePreview();
+    this.profileDisplayName = this.currentGuest;
+    this.profileAvatarUrl = this.currentAvatarUrl;
+  }
+
+  private revokeProfilePreview(): void {
+    if (!this.profilePreviewObjectUrl) {
+      return;
+    }
+
+    URL.revokeObjectURL(this.profilePreviewObjectUrl);
+    this.profilePreviewObjectUrl = '';
+  }
+
+  private clearSession(): void {
+    sessionStorage.removeItem('currentUserId');
+    sessionStorage.removeItem('currentGuest');
+    sessionStorage.removeItem('currentUsername');
+    sessionStorage.removeItem('currentAlbumId');
+    sessionStorage.removeItem('currentAvatarUrl');
+    sessionStorage.removeItem('isAdmin');
+    sessionStorage.removeItem('adminPassword');
+  }
+}

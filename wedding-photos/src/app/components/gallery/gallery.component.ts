@@ -1,10 +1,12 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { AlbumService, Album, Photo } from '../../services/album.service';
+import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { AlbumService, Album } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
-import { AppUser, SupabaseService } from '../../services/supabase.service';
+import { SupabaseService } from '../../services/supabase.service';
+import { NotificationService } from '../../services/notification.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
 
@@ -33,21 +35,15 @@ export class GalleryComponent implements OnInit, OnDestroy {
   currentAvatarUrl = '';
   isAdmin = false;
   adminMessage = '';
-  isEditingProfile = false;
-  isSavingProfile = false;
-  profileDisplayName = '';
-  profileAvatarUrl = '';
-  profileMessage = '';
-  profileErrorMessage = '';
-  private selectedProfileImage: File | null = null;
-  private profilePreviewObjectUrl = '';
+  unreadNotificationCount = 0;
+  private notificationSubscription?: Subscription;
 
   constructor(
     private albumService: AlbumService,
-    private route: ActivatedRoute,
     private router: Router,
     private cloudinaryService: CloudinaryService,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private notificationService: NotificationService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -65,17 +61,13 @@ export class GalleryComponent implements OnInit, OnDestroy {
     }
 
     await this.albumService.ready(true);
+    await this.notificationService.ready();
     this.pageSize = this.getPageSizeForViewport();
-    this.resetProfileForm();
-    if (this.route.snapshot.queryParamMap.get('profile') === '1') {
-      this.openProfileEditor();
-      void this.router.navigate([], {
-        relativeTo: this.route,
-        queryParams: { profile: null },
-        queryParamsHandling: 'merge',
-        replaceUrl: true
-      });
-    }
+
+    this.notificationSubscription = this.notificationService.unreadCount$.subscribe(count => {
+      this.unreadNotificationCount = count;
+    });
+
     this.albumService.albums$.subscribe(albums => {
       this.albums = albums;
       this.refreshAlbumCollections();
@@ -83,7 +75,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.revokeProfilePreview();
+    this.notificationSubscription?.unsubscribe();
   }
 
   @HostListener('window:resize')
@@ -102,100 +94,8 @@ export class GalleryComponent implements OnInit, OnDestroy {
     this.router.navigate(['/upload']);
   }
 
-  openProfileEditor(): void {
-    this.isEditingProfile = true;
-    this.profileMessage = '';
-    this.profileErrorMessage = '';
-    this.resetProfileForm();
-    setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 0);
-  }
-
-  toggleProfileEditor(): void {
-    this.isEditingProfile = !this.isEditingProfile;
-    this.profileMessage = '';
-    this.profileErrorMessage = '';
-
-    if (this.isEditingProfile) {
-      this.openProfileEditor();
-      return;
-    }
-
-    this.revokeProfilePreview();
-  }
-
-  async saveProfile(): Promise<void> {
-    this.profileErrorMessage = '';
-    this.profileMessage = '';
-
-    const displayName = this.profileDisplayName.trim();
-
-    if (!displayName) {
-      this.profileErrorMessage = 'Entrez votre nom.';
-      return;
-    }
-
-    this.isSavingProfile = true;
-
-    try {
-      let avatarUrl = this.profileAvatarUrl || '';
-
-      if (this.selectedProfileImage) {
-        const result = await this.cloudinaryService.uploadFile(
-          this.selectedProfileImage,
-          `wedding-profiles/${this.currentUserId}`
-        );
-        avatarUrl = result.secure_url;
-      }
-
-      const updatedUser = await this.supabaseService.updateCurrentProfile({
-        displayName,
-        username: this.currentUsername,
-        avatarUrl
-      });
-
-      this.applyCurrentUser(updatedUser);
-      this.resetProfileForm();
-      this.profileMessage = 'Profil mis à jour.';
-      await this.albumService.refreshSharedAlbums();
-    } catch (error) {
-      this.profileErrorMessage = error instanceof Error
-        ? error.message
-        : 'Impossible de mettre à jour le profil.';
-    } finally {
-      this.isSavingProfile = false;
-      this.revokeProfilePreview();
-    }
-  }
-
-  onProfileImageSelected(event: Event): void {
-    const input = event.target as HTMLInputElement | null;
-    const file = input?.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      this.profileErrorMessage = 'Choisissez une image.';
-      return;
-    }
-
-    this.profileErrorMessage = '';
-    this.selectedProfileImage = file;
-    this.revokeProfilePreview();
-    this.profilePreviewObjectUrl = URL.createObjectURL(file);
-    this.profileAvatarUrl = this.profilePreviewObjectUrl;
-    if (input) {
-      input.value = '';
-    }
-  }
-
-  resetProfileImage(): void {
-    this.selectedProfileImage = null;
-    this.revokeProfilePreview();
-    this.profileAvatarUrl = '';
+  goToProfile(): void {
+    this.router.navigate(['/profile']);
   }
 
   getAvatarUrl(avatarUrl: string, displayName: string, username: string): string {
@@ -215,10 +115,6 @@ export class GalleryComponent implements OnInit, OnDestroy {
 
   viewAlbum(album: Album): void {
     this.router.navigate(['/album', album.id]);
-  }
-
-  getPreviewPhotos(album: Album): Photo[] {
-    return [...album.photos].slice(-3).reverse();
   }
 
   getAlbumMomentLabel(album: Album): string {
@@ -241,8 +137,7 @@ export class GalleryComponent implements OnInit, OnDestroy {
   }
 
   getRegisteredGuestCount(): number {
-    const guestAlbums = this.albums.filter(album => album.ownerRole !== 'admin');
-    return guestAlbums.length;
+    return this.albums.filter(album => album.ownerRole !== 'admin').length;
   }
 
   getSearchResultLabel(): string {
@@ -297,10 +192,6 @@ export class GalleryComponent implements OnInit, OnDestroy {
     return album.id;
   }
 
-  trackByPhotoId(_: number, photo: Photo): string {
-    return photo.id;
-  }
-
   async deleteAlbum(album: Album, event: Event): Promise<void> {
     event.stopPropagation();
     this.adminMessage = '';
@@ -314,7 +205,10 @@ export class GalleryComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const confirmed = confirm(`Vider l'album "${album.name}" ? Toutes les photos seront supprimées, mais l'album restera disponible pour l'utilisateur.`);
+    const confirmed = confirm(
+      `Vider l'album "${album.name}" ? Toutes les photos seront supprimées, mais l'album restera disponible pour l'utilisateur.`
+    );
+
     if (!confirmed) {
       return;
     }
@@ -375,36 +269,6 @@ export class GalleryComponent implements OnInit, OnDestroy {
     sessionStorage.removeItem('currentAvatarUrl');
     sessionStorage.removeItem('isAdmin');
     sessionStorage.removeItem('adminPassword');
-  }
-
-  private applyCurrentUser(user: AppUser): void {
-    this.currentGuest = user.displayName;
-    this.currentUsername = user.username;
-    this.currentAlbumId = user.albumId;
-    this.currentAvatarUrl = user.avatarUrl || '';
-    this.isAdmin = user.role === 'admin';
-    sessionStorage.setItem('currentUserId', user.id);
-    sessionStorage.setItem('currentGuest', user.displayName);
-    sessionStorage.setItem('currentUsername', user.username);
-    sessionStorage.setItem('currentAlbumId', user.albumId);
-    sessionStorage.setItem('currentAvatarUrl', user.avatarUrl || '');
-    sessionStorage.setItem('isAdmin', String(user.role === 'admin'));
-  }
-
-  private resetProfileForm(): void {
-    this.selectedProfileImage = null;
-    this.revokeProfilePreview();
-    this.profileDisplayName = this.currentGuest;
-    this.profileAvatarUrl = this.currentAvatarUrl;
-  }
-
-  private revokeProfilePreview(): void {
-    if (!this.profilePreviewObjectUrl) {
-      return;
-    }
-
-    URL.revokeObjectURL(this.profilePreviewObjectUrl);
-    this.profilePreviewObjectUrl = '';
   }
 
   private sameGuest(left: string, right: string): boolean {

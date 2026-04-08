@@ -11,6 +11,29 @@ export interface AppUser {
   avatarUrl: string;
 }
 
+export interface TaggableGuest {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+}
+
+export interface PhotoTagNotification {
+  id: string;
+  recipientUserId: string;
+  actorUserId: string;
+  actorDisplayName: string;
+  actorUsername: string;
+  actorAvatarUrl: string;
+  photoId: string;
+  albumId: string;
+  photoUrl: string;
+  photoPublicId: string;
+  photoType: 'image' | 'video';
+  isRead: boolean;
+  createdAt: string;
+}
+
 interface ProfileRow {
   id: string;
   username: string;
@@ -233,6 +256,15 @@ export class SupabaseService {
           ),
           photo_likes (
             user_id
+          ),
+          photo_tags (
+            tagged_user_id,
+            tagged_profile:profiles!photo_tags_tagged_user_id_fkey (
+              id,
+              username,
+              display_name,
+              avatar_url
+            )
           )
         )
       `);
@@ -351,13 +383,141 @@ export class SupabaseService {
     return Number.isFinite(Number(data)) ? Number(data) : 0;
   }
 
+  async fetchTaggableGuests(currentUserId: string): Promise<TaggableGuest[]> {
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, role')
+      .neq('id', currentUserId)
+      .eq('role', 'guest')
+      .order('display_name', { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map(profile => ({
+      id: profile.id,
+      username: profile.username || '',
+      displayName: profile.display_name || 'Invité',
+      avatarUrl: profile.avatar_url || ''
+    }));
+  }
+
+  async tagPhotoUsers(photoId: string, taggedUserIds: string[]): Promise<void> {
+    const normalizedIds = [...new Set(taggedUserIds.filter(Boolean))];
+    if (normalizedIds.length === 0) {
+      return;
+    }
+
+    const { error } = await this.client.rpc('tag_photo_users', {
+      p_photo_id: photoId,
+      p_tagged_user_ids: normalizedIds
+    });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async fetchNotifications(userId: string): Promise<PhotoTagNotification[]> {
+    const { data, error } = await this.client
+      .from('notifications')
+      .select(`
+        id,
+        recipient_user_id,
+        actor_user_id,
+        photo_id,
+        album_id,
+        is_read,
+        created_at,
+        actor:profiles!notifications_actor_user_id_fkey (
+          id,
+          username,
+          display_name,
+          avatar_url
+        ),
+        photo:photos!notifications_photo_id_fkey (
+          id,
+          media_url,
+          cloudinary_public_id,
+          media_type
+        )
+      `)
+      .eq('recipient_user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((notification: any) => ({
+      id: notification.id,
+      recipientUserId: notification.recipient_user_id,
+      actorUserId: notification.actor_user_id,
+      actorDisplayName: notification.actor?.display_name || 'Invité',
+      actorUsername: notification.actor?.username || '',
+      actorAvatarUrl: notification.actor?.avatar_url || '',
+      photoId: notification.photo_id,
+      albumId: notification.album_id,
+      photoUrl: notification.photo?.media_url || '',
+      photoPublicId: notification.photo?.cloudinary_public_id || '',
+      photoType: notification.photo?.media_type === 'video' ? 'video' : 'image',
+      isRead: Boolean(notification.is_read),
+      createdAt: notification.created_at
+    }));
+  }
+
+  async markNotificationRead(notificationId: string): Promise<void> {
+    const { error } = await this.client
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async markAllNotificationsRead(userId: string): Promise<void> {
+    const { error } = await this.client
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('recipient_user_id', userId)
+      .eq('is_read', false);
+
+    if (error) {
+      throw error;
+    }
+  }
+
   subscribeToGalleryChanges(onChange: () => void): () => void {
     const channel = this.client
       .channel(`gallery-sync-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'albums' }, () => onChange())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photos' }, () => onChange())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'photo_likes' }, () => onChange())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'photo_tags' }, () => onChange())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => onChange())
+      .subscribe();
+
+    return () => {
+      void this.client.removeChannel(channel);
+    };
+  }
+
+  subscribeToNotificationChanges(userId: string, onChange: () => void): () => void {
+    const channel = this.client
+      .channel(`notifications-${userId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `recipient_user_id=eq.${userId}`
+        },
+        () => onChange()
+      )
       .subscribe();
 
     return () => {

@@ -15,6 +15,7 @@ export class MobileMenuComponent implements OnDestroy {
   @Input() currentUsername = '';
   @Input() currentAvatarUrl = '';
   @Input() showProfile = true;
+  @Input() unreadCount = 0;
 
   @Output() profileRequested = new EventEmitter<void>();
   @Output() logoutRequested = new EventEmitter<void>();

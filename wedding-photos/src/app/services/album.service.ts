@@ -16,10 +16,19 @@ export interface Photo {
   type: 'image' | 'video';
   likes: string[];
   downloadCount: number;
+  taggedUsers: PhotoTaggedUser[];
+}
+
+export interface PhotoTaggedUser {
+  userId: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
 }
 
 export interface Album {
   id: string;
+  ownerId: string;
   name: string;
   ownerUsername: string;
   ownerRole: 'guest' | 'admin';
@@ -90,7 +99,11 @@ export class AlbumService {
     return this.albumsSubject.value.find(album => album.id === id);
   }
 
-  async addPhotoToAlbum(albumId: string, photo: Photo): Promise<void> {
+  getAlbumByOwnerId(ownerId: string): Album | undefined {
+    return this.albumsSubject.value.find(album => album.ownerId === ownerId);
+  }
+
+  async addPhotoToAlbum(albumId: string, photo: Photo): Promise<Photo> {
     const insertedPhoto = await this.supabaseService.insertPhoto({
       albumId,
       publicId: photo.publicId,
@@ -98,24 +111,28 @@ export class AlbumService {
       type: photo.type
     });
 
+    const hydratedPhoto = this.hydratePhoto({
+      ...photo,
+      id: insertedPhoto.id,
+      uploadedAt: insertedPhoto.created_at,
+      downloadCount: insertedPhoto.download_count
+    });
+
     const album = this.getAlbum(albumId);
     if (!album) {
       await this.refreshSharedAlbums();
-      return;
+      return hydratedPhoto;
     }
 
     this.upsertLocalAlbum({
       ...album,
       photos: [
         ...album.photos,
-        this.hydratePhoto({
-          ...photo,
-          id: insertedPhoto.id,
-          uploadedAt: insertedPhoto.created_at,
-          downloadCount: insertedPhoto.download_count
-        })
+        hydratedPhoto
       ]
     });
+
+    return hydratedPhoto;
   }
 
   async removePhotoFromAlbum(albumId: string, photoId: string): Promise<void> {
@@ -282,6 +299,7 @@ export class AlbumService {
 
     return {
       id: row.id,
+      ownerId: owner.id || '',
       name: owner.display_name || 'Invite',
       ownerUsername: owner.username || '',
       ownerRole: owner.role === 'admin' ? 'admin' : 'guest',
@@ -304,6 +322,16 @@ export class AlbumService {
                 .map((like: any) => String(like.user_id || ''))
                 .filter(Boolean)
             : [],
+          taggedUsers: Array.isArray(photo.photo_tags)
+            ? photo.photo_tags
+                .map((tag: any) => ({
+                  userId: String(tag.tagged_profile?.id || tag.tagged_user_id || ''),
+                  username: String(tag.tagged_profile?.username || ''),
+                  displayName: String(tag.tagged_profile?.display_name || ''),
+                  avatarUrl: String(tag.tagged_profile?.avatar_url || '')
+                }))
+                .filter((taggedUser: PhotoTaggedUser) => Boolean(taggedUser.userId && taggedUser.displayName))
+            : [],
           downloadCount: Number.isFinite(Number(photo.download_count))
             ? Number(photo.download_count)
             : 0
@@ -324,6 +352,7 @@ export class AlbumService {
   private hydrateAlbum(album: Album): Album {
     return {
       ...album,
+      ownerId: album.ownerId || '',
       name: album.name.trim(),
       ownerUsername: album.ownerUsername.trim(),
       ownerRole: album.ownerRole === 'admin' ? 'admin' : 'guest',
@@ -347,6 +376,16 @@ export class AlbumService {
       type: photo.type === 'video' ? 'video' : 'image',
       likes: Array.isArray(photo.likes)
         ? photo.likes.map(like => String(like)).filter(Boolean)
+        : [],
+      taggedUsers: Array.isArray(photo.taggedUsers)
+        ? photo.taggedUsers
+            .map(taggedUser => ({
+              userId: String(taggedUser.userId || ''),
+              username: String(taggedUser.username || ''),
+              displayName: String(taggedUser.displayName || '').trim(),
+              avatarUrl: String(taggedUser.avatarUrl || '')
+            }))
+            .filter(taggedUser => Boolean(taggedUser.userId && taggedUser.displayName))
         : [],
       downloadCount: Number.isFinite(Number(photo.downloadCount))
         ? Number(photo.downloadCount)

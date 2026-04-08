@@ -33,6 +33,25 @@
     box-shadow: 0 14px 28px rgba(89, 62, 57, 0.14);
   }
 
+  .mobile-menu__badge {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.15rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.26rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #c86f74;
+    color: #fffaf7;
+    font-size: 0.64rem;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 6px 14px rgba(130, 81, 86, 0.25);
+  }
+
   .mobile-menu__toggle span {
     display: block;
     width: 100%;
@@ -137,6 +156,28 @@
     text-decoration: none;
     font-size: 0.98rem;
     font-weight: 700;
+  }
+
+  .mobile-menu__link--with-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .mobile-menu__link-badge {
+    min-width: 1.45rem;
+    height: 1.45rem;
+    padding: 0 0.34rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(200, 111, 116, 0.14);
+    color: #a3555d;
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
   }
 
   .mobile-menu__link--danger {

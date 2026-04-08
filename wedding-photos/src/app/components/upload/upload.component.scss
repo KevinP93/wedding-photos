@@ -210,6 +210,7 @@
   padding: 10px;
   display: grid;
   gap: 10px;
+  align-content: start;
 }
 
 .preview-media {
@@ -248,6 +249,118 @@
   margin: 0;
   color: var(--ink-soft);
   font-size: 0.9rem;
+}
+
+.tag-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.tag-search {
+  display: block;
+  border-radius: 16px;
+  border: 1px solid rgba(126, 88, 78, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tag-search--open {
+  border-color: rgba(130, 81, 86, 0.26);
+  box-shadow: 0 0 0 4px rgba(130, 81, 86, 0.06);
+}
+
+.tag-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 11px 13px;
+  color: var(--ink);
+  font-size: 0.88rem;
+}
+
+.tag-search input:focus {
+  outline: none;
+}
+
+.tag-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  gap: 6px;
+  border: 1px solid rgba(126, 88, 78, 0.12);
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.tag-chip__remove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.tag-picker {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(126, 88, 78, 0.12);
+}
+
+.tag-guest {
+  border: 0;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(247, 239, 234, 0.92);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tag-guest--selected {
+  background: rgba(130, 81, 86, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(130, 81, 86, 0.14);
+}
+
+.tag-guest__avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.tag-guest__name {
+  min-width: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.tag-guest__check {
+  width: 1.6rem;
+  height: 1.6rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--rosewood);
+  font-weight: 700;
 }
 
 .remove-btn {
@@ -325,6 +438,11 @@
 .result-pill--error {
   background: rgba(158, 75, 75, 0.12);
   color: #934747;
+}
+
+.result-pill--warning {
+  background: rgba(213, 176, 122, 0.18);
+  color: #7d5d22;
 }
 
 @media (min-width: 720px) {

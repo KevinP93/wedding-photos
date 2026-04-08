@@ -1,0 +1,163 @@
+<div class="profile-shell">
+  <header class="profile-hero">
+    <div class="hero-actions">
+      <button type="button" class="back-btn back-btn--icon" (click)="goBack()" aria-label="Retour">
+        <span class="back-btn__chevron" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="ghost-btn hero-action hero-action--desktop" (click)="logout()">
+        Se déconnecter
+      </button>
+      <app-mobile-menu
+        [currentGuest]="currentGuest"
+        [currentUsername]="currentUsername"
+        [currentAvatarUrl]="currentAvatarUrl"
+        [showProfile]="false"
+        [unreadCount]="unreadNotificationCount"
+        (logoutRequested)="logout()"
+      />
+    </div>
+
+    <div class="hero-copy">
+      <p class="eyebrow">Profil</p>
+      <h1>{{ currentGuest }}</h1>
+      <p>Gérez votre nom et votre photo de profil.</p>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-card">
+        <strong>{{ getOwnPhotoCount() }}</strong>
+        <span>photos</span>
+      </div>
+      <div class="stat-card">
+        <strong>{{ getOwnLikeCount() }}</strong>
+        <span>j'aime</span>
+      </div>
+      <div class="stat-card">
+        <strong>{{ unreadNotificationCount }}</strong>
+        <span>notification{{ unreadNotificationCount > 1 ? 's' : '' }}</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="profile-card">
+    <div class="profile-avatar-block">
+      <img
+        class="profile-avatar"
+        [src]="getAvatarUrl(profileAvatarUrl, profileDisplayName || currentGuest, currentUsername)"
+        [alt]="'Avatar de ' + (profileDisplayName || currentGuest)"
+      />
+
+      <input
+        #profileImageInput
+        type="file"
+        hidden
+        accept="image/*"
+        (change)="onProfileImageSelected($event)"
+      />
+
+      <div class="profile-avatar-actions">
+        <button type="button" class="ghost-btn" (click)="profileImageInput.click()">
+          Choisir une photo
+        </button>
+        <button type="button" class="ghost-btn" (click)="resetProfileImage()">
+          Avatar par défaut
+        </button>
+      </div>
+    </div>
+
+    <div class="profile-form">
+      <label for="profileDisplayName">Nom affiché</label>
+      <input
+        id="profileDisplayName"
+        type="text"
+        class="profile-input"
+        [(ngModel)]="profileDisplayName"
+        placeholder="Exemple : Camille"
+      />
+
+      <p class="profile-readonly">Nom d'utilisateur : {{ currentUsername }}</p>
+
+      <div *ngIf="profileMessage" class="profile-message">
+        {{ profileMessage }}
+      </div>
+
+      <div *ngIf="profileErrorMessage" class="profile-error">
+        {{ profileErrorMessage }}
+      </div>
+
+      <div class="profile-form-actions">
+        <button type="button" class="ghost-btn" (click)="goBack()">
+          Retour
+        </button>
+        <button type="button" class="primary-btn" (click)="saveProfile()" [disabled]="isSavingProfile">
+          {{ isSavingProfile ? 'Enregistrement...' : 'Enregistrer' }}
+        </button>
+      </div>
+
+      <div class="profile-shortcuts">
+        <button *ngIf="!isAdmin" type="button" class="ghost-btn profile-shortcut" (click)="goToUpload()">
+          Ajouter des photos
+        </button>
+        <button type="button" class="ghost-btn profile-shortcut" (click)="goToAlbum()">
+          Voir mon album
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="notifications-card">
+    <div class="notifications-head">
+      <div>
+        <p class="eyebrow">Notifications</p>
+        <h2>Identifications</h2>
+      </div>
+
+      <button
+        *ngIf="unreadNotificationCount > 0"
+        type="button"
+        class="ghost-btn"
+        (click)="markAllNotificationsRead()"
+      >
+        Tout lire
+      </button>
+    </div>
+
+    <div class="notifications-list" *ngIf="notifications.length > 0; else noNotifications">
+      <button
+        type="button"
+        class="notification-card"
+        [class.notification-card--unread]="!notification.isRead"
+        *ngFor="let notification of notifications; trackBy: trackByNotificationId"
+        (click)="openNotification(notification)"
+      >
+        <img
+          class="notification-thumb"
+          [src]="getNotificationThumbnailUrl(notification)"
+          [alt]="'Photo associée à la notification de ' + notification.actorDisplayName"
+        />
+
+        <div class="notification-copy">
+          <div class="notification-author">
+            <img
+              class="notification-author-avatar"
+              [src]="getNotificationActorAvatarUrl(notification)"
+              [alt]="'Avatar de ' + notification.actorDisplayName"
+            />
+            <strong>{{ notification.actorDisplayName }}</strong>
+          </div>
+
+          <p>{{ notification.actorDisplayName }} vous a identifié sur une photo.</p>
+          <span>{{ notification.createdAt | date:'d MMMM yyyy, HH:mm' }}</span>
+        </div>
+
+        <span class="notification-dot" *ngIf="!notification.isRead" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <ng-template #noNotifications>
+      <div class="notifications-empty">
+        <p>Aucune notification pour le moment.</p>
+      </div>
+    </ng-template>
+  </section>
+</div>

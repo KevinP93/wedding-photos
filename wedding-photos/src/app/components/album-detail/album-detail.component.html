@@ -27,6 +27,7 @@
         [currentGuest]="currentGuest"
         [currentUsername]="currentUsername"
         [currentAvatarUrl]="currentAvatarUrl"
+        [unreadCount]="unreadNotificationCount"
         (profileRequested)="goToProfile()"
         (logoutRequested)="logout()"
       />
@@ -192,6 +193,17 @@
             {{ selectedIndex + 1 }} / {{ currentAlbum.photos.length }}
             · {{ activePhoto.uploadedAt | date:'d MMMM yyyy, HH:mm' }}
           </p>
+          <div class="viewer-tags" *ngIf="hasTaggedUsers(activePhoto)">
+            <span class="viewer-tags__label">Identifiés :</span>
+            <button
+              type="button"
+              class="viewer-tag"
+              *ngFor="let taggedUser of activePhoto.taggedUsers"
+              (click)="goToTaggedUserAlbum(taggedUser, $event)"
+            >
+              {{ taggedUser.displayName }}
+            </button>
+          </div>
         </div>
 
         <div class="viewer-side">

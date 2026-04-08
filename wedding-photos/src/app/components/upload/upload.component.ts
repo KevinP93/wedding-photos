@@ -3,13 +3,19 @@ import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { AlbumService, Photo } from '../../services/album.service';
-import { SupabaseService } from '../../services/supabase.service';
+import { SupabaseService, TaggableGuest } from '../../services/supabase.service';
+import { NotificationService } from '../../services/notification.service';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
+import { Subscription } from 'rxjs';
+import { buildAvatarUrl } from '../../utils/avatar';
 
 interface SelectedMedia {
   file: File;
   previewUrl: string;
   type: 'image' | 'video';
+  taggedUserIds: string[];
+  tagQuery: string;
+  isTagPickerOpen: boolean;
 }
 
 @Component({
@@ -31,12 +37,18 @@ export class UploadComponent implements OnInit, OnDestroy {
   currentAlbumId = '';
   currentAvatarUrl = '';
   isAdmin = false;
+  unreadNotificationCount = 0;
+  taggableGuests: TaggableGuest[] = [];
   uploadResults: { success: number; error: number } = { success: 0, error: 0 };
+  taggingWarningMessage = '';
+  taggableGuestsError = '';
+  private notificationSubscription?: Subscription;
 
   constructor(
     private cloudinaryService: CloudinaryService,
     private albumService: AlbumService,
     private supabaseService: SupabaseService,
+    private notificationService: NotificationService,
     private router: Router
   ) {}
 
@@ -59,9 +71,16 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     await this.albumService.ready(true);
+    await this.notificationService.ready();
+    await this.loadTaggableGuests();
+
+    this.notificationSubscription = this.notificationService.unreadCount$.subscribe(count => {
+      this.unreadNotificationCount = count;
+    });
   }
 
   ngOnDestroy(): void {
+    this.notificationSubscription?.unsubscribe();
     this.clearSelectedFiles();
   }
 
@@ -88,7 +107,10 @@ export class UploadComponent implements OnInit, OnDestroy {
     const nextEntries: SelectedMedia[] = imageFiles.map(file => ({
       file,
       previewUrl: URL.createObjectURL(file),
-      type: 'image'
+      type: 'image',
+      taggedUserIds: [],
+      tagQuery: '',
+      isTagPickerOpen: false
     }));
 
     this.selectedFiles = [...this.selectedFiles, ...nextEntries];
@@ -138,6 +160,7 @@ export class UploadComponent implements OnInit, OnDestroy {
 
     this.selectedFiles = [];
     this.selectionError = '';
+    this.taggingWarningMessage = '';
   }
 
   async uploadFiles(): Promise<void> {
@@ -148,12 +171,16 @@ export class UploadComponent implements OnInit, OnDestroy {
     this.isUploading = true;
     this.uploadProgress = 0;
     this.uploadResults = { success: 0, error: 0 };
+    this.taggingWarningMessage = '';
+    let taggingFailures = 0;
+    let targetAlbumId = '';
 
     try {
       const totalFiles = this.selectedFiles.length;
       const userAlbum = await this.albumService.getCurrentUserAlbum();
 
       this.currentAlbumId = userAlbum.id;
+      targetAlbumId = userAlbum.id;
       sessionStorage.setItem('currentAlbumId', userAlbum.id);
 
       for (let index = 0; index < this.selectedFiles.length; index++) {
@@ -177,10 +204,21 @@ export class UploadComponent implements OnInit, OnDestroy {
             uploadedAt: new Date(),
             type: selectedFile.type,
             likes: [],
+            taggedUsers: [],
             downloadCount: 0
           };
 
-          await this.albumService.addPhotoToAlbum(userAlbum.id, photo);
+          const insertedPhoto = await this.albumService.addPhotoToAlbum(userAlbum.id, photo);
+
+          if (selectedFile.taggedUserIds.length > 0) {
+            try {
+              await this.supabaseService.tagPhotoUsers(insertedPhoto.id, selectedFile.taggedUserIds);
+            } catch (error) {
+              taggingFailures++;
+              console.error('Erreur lors de l’identification des invités :', error);
+            }
+          }
+
           this.uploadResults.success++;
         } catch (error) {
           console.error('Erreur lors de l\'upload:', error);
@@ -194,7 +232,14 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     if (this.uploadResults.success > 0) {
+      await this.albumService.refreshSharedAlbums();
       this.clearSelectedFiles();
+      await this.router.navigate(['/album', targetAlbumId || this.currentAlbumId]);
+      return;
+    }
+
+    if (taggingFailures > 0) {
+      this.taggingWarningMessage = 'Certaines identifications n’ont pas pu être enregistrées.';
     }
   }
 
@@ -203,7 +248,7 @@ export class UploadComponent implements OnInit, OnDestroy {
   }
 
   goToProfile(): void {
-    this.router.navigate(['/gallery'], { queryParams: { profile: '1' } });
+    this.router.navigate(['/profile']);
   }
 
   async logout(): Promise<void> {
@@ -233,6 +278,84 @@ export class UploadComponent implements OnInit, OnDestroy {
     return selectedFile.type === 'video' ? 'Video' : 'Photo';
   }
 
+  openTagPicker(selectedFile: SelectedMedia): void {
+    if (this.isUploading) {
+      return;
+    }
+
+    this.selectedFiles.forEach(item => {
+      if (item !== selectedFile) {
+        item.isTagPickerOpen = false;
+      }
+    });
+    selectedFile.isTagPickerOpen = true;
+  }
+
+  closeTagPicker(selectedFile: SelectedMedia): void {
+    window.setTimeout(() => {
+      selectedFile.isTagPickerOpen = false;
+    }, 120);
+  }
+
+  onTagQueryChange(selectedFile: SelectedMedia, value: string): void {
+    selectedFile.tagQuery = value;
+    selectedFile.isTagPickerOpen = value.trim().length > 0;
+  }
+
+  selectTaggedGuest(selectedFile: SelectedMedia, guestId: string, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (!selectedFile.taggedUserIds.includes(guestId)) {
+      selectedFile.taggedUserIds = [...selectedFile.taggedUserIds, guestId];
+    }
+
+    selectedFile.tagQuery = '';
+    selectedFile.isTagPickerOpen = false;
+  }
+
+  removeTaggedGuest(selectedFile: SelectedMedia, guestId: string, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (!selectedFile.taggedUserIds.includes(guestId)) {
+      return;
+    }
+
+    selectedFile.taggedUserIds = selectedFile.taggedUserIds.filter(id => id !== guestId);
+  }
+
+  isGuestTagged(selectedFile: SelectedMedia, guestId: string): boolean {
+    return selectedFile.taggedUserIds.includes(guestId);
+  }
+
+  getTaggedGuestCount(selectedFile: SelectedMedia): number {
+    return selectedFile.taggedUserIds.length;
+  }
+
+  getTaggedGuests(selectedFile: SelectedMedia): TaggableGuest[] {
+    return this.taggableGuests.filter(guest => selectedFile.taggedUserIds.includes(guest.id));
+  }
+
+  getMatchingGuests(selectedFile: SelectedMedia): TaggableGuest[] {
+    const normalizedQuery = this.normalizeSearchValue(selectedFile.tagQuery);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return this.taggableGuests
+      .filter(guest => !selectedFile.taggedUserIds.includes(guest.id))
+      .filter(guest =>
+        this.normalizeSearchValue(guest.displayName).includes(normalizedQuery)
+        || this.normalizeSearchValue(guest.username).includes(normalizedQuery)
+      )
+      .slice(0, 6);
+  }
+
+  getGuestAvatarUrl(guest: TaggableGuest): string {
+    return buildAvatarUrl(guest.avatarUrl, guest.displayName, guest.username);
+  }
+
   private extractFiles(event: Event | DragEvent): File[] {
     if (event instanceof DragEvent && event.dataTransfer?.files?.length) {
       return Array.from(event.dataTransfer.files);
@@ -243,6 +366,26 @@ export class UploadComponent implements OnInit, OnDestroy {
     }
 
     return [];
+  }
+
+  private async loadTaggableGuests(): Promise<void> {
+    this.taggableGuestsError = '';
+
+    try {
+      this.taggableGuests = await this.supabaseService.fetchTaggableGuests(this.currentUserId);
+    } catch (error) {
+      console.error('Impossible de charger les invités à identifier :', error);
+      this.taggableGuests = [];
+      this.taggableGuestsError = 'Impossible de charger la liste des invités pour l’identification.';
+    }
+  }
+
+  private normalizeSearchValue(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
   }
 
   private clearSession(): void {

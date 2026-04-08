@@ -7,6 +7,9 @@
     [attr.aria-expanded]="isOpen"
     aria-label="Ouvrir le menu"
   >
+    <span class="mobile-menu__badge" *ngIf="unreadCount > 0">
+      {{ unreadCount > 9 ? '9+' : unreadCount }}
+    </span>
     <span></span>
     <span></span>
     <span></span>
@@ -33,8 +36,11 @@
         Accueil
       </a>
 
-      <button *ngIf="showProfile" type="button" class="mobile-menu__link" (click)="openProfile()">
-        Profil
+      <button *ngIf="showProfile" type="button" class="mobile-menu__link mobile-menu__link--with-badge" (click)="openProfile()">
+        <span>Profil</span>
+        <span class="mobile-menu__link-badge" *ngIf="unreadCount > 0">
+          {{ unreadCount > 9 ? '9+' : unreadCount }}
+        </span>
       </button>
 
       <button type="button" class="mobile-menu__link mobile-menu__link--danger" (click)="logout()">
