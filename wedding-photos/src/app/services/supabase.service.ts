@@ -21,6 +21,9 @@ export interface TaggableGuest {
 
 export interface PhotoTagNotification {
   id: string;
+  type: 'photo_tag' | 'admin_announcement';
+  title: string;
+  message: string;
   recipientUserId: string;
   actorUserId: string;
   actorDisplayName: string;
@@ -33,6 +36,13 @@ export interface PhotoTagNotification {
   photoType: 'image' | 'video';
   isRead: boolean;
   createdAt: string;
+}
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent: string;
 }
 
 interface ProfileRow {
@@ -196,8 +206,8 @@ export class SupabaseService {
     };
 
     const currentEmail = (authData.user.email || '').trim().toLowerCase();
-    const shouldRefreshLoginEmail = normalizedUsername !== currentUser.username ||
-      this.isLegacyLoginEmail(currentEmail);
+    const shouldRefreshLoginEmail =
+      normalizedUsername !== currentUser.username || this.isLegacyLoginEmail(currentEmail);
 
     if (shouldRefreshLoginEmail) {
       attributes.email = this.buildLoginEmail(normalizedUsername);
@@ -418,11 +428,85 @@ export class SupabaseService {
     }
   }
 
+  async upsertPushSubscription(payload: PushSubscriptionPayload): Promise<void> {
+    const userId = await this.requireUserId();
+
+    const { error } = await this.client
+      .from('push_subscriptions')
+      .upsert({
+        user_id: userId,
+        endpoint: payload.endpoint,
+        p256dh: payload.p256dh,
+        auth: payload.auth,
+        user_agent: payload.userAgent
+      }, {
+        onConflict: 'endpoint'
+      });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async deletePushSubscription(endpoint: string): Promise<void> {
+    const { error } = await this.client
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async getAccessToken(): Promise<string> {
+    const { data, error } = await this.client.auth.getSession();
+    if (error) {
+      throw error;
+    }
+
+    const accessToken = data.session?.access_token || '';
+    if (!accessToken) {
+      throw new Error(this.i18n.t('supabase.sessionMissing'));
+    }
+
+    return accessToken;
+  }
+
+  async dispatchTagPushNotification(photoId: string, recipientUserIds: string[]): Promise<void> {
+    const normalizedIds = [...new Set(recipientUserIds.filter(Boolean))];
+    if (normalizedIds.length === 0) {
+      return;
+    }
+
+    await this.callNotificationsApi({
+      type: 'photo_tag_push',
+      photoId,
+      recipientUserIds: normalizedIds
+    });
+  }
+
+  async sendAdminAnnouncement(payload: {
+    title: string;
+    message: string;
+    recipientUserIds?: string[];
+  }): Promise<void> {
+    await this.callNotificationsApi({
+      type: 'admin_announcement',
+      title: payload.title.trim(),
+      message: payload.message.trim(),
+      recipientUserIds: payload.recipientUserIds || []
+    });
+  }
+
   async fetchNotifications(userId: string): Promise<PhotoTagNotification[]> {
     const { data, error } = await this.client
       .from('notifications')
       .select(`
         id,
+        type,
+        title,
+        message,
         recipient_user_id,
         actor_user_id,
         photo_id,
@@ -451,13 +535,16 @@ export class SupabaseService {
 
     return (data ?? []).map((notification: any) => ({
       id: notification.id,
+      type: notification.type === 'admin_announcement' ? 'admin_announcement' : 'photo_tag',
+      title: notification.title || '',
+      message: notification.message || '',
       recipientUserId: notification.recipient_user_id,
       actorUserId: notification.actor_user_id,
       actorDisplayName: notification.actor?.display_name || 'Invité',
       actorUsername: notification.actor?.username || '',
       actorAvatarUrl: notification.actor?.avatar_url || '',
-      photoId: notification.photo_id,
-      albumId: notification.album_id,
+      photoId: notification.photo_id || '',
+      albumId: notification.album_id || '',
       photoUrl: notification.photo?.media_url || '',
       photoPublicId: notification.photo?.cloudinary_public_id || '',
       photoType: notification.photo?.media_type === 'video' ? 'video' : 'image',
@@ -548,6 +635,36 @@ export class SupabaseService {
 
   private isInvalidCredentialsError(message: string): boolean {
     return message.toLowerCase().includes('invalid login credentials');
+  }
+
+  private async callNotificationsApi(payload: Record<string, unknown>): Promise<any> {
+    const accessToken = await this.getAccessToken();
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const rawText = await response.text();
+    let data: any = {};
+
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = {};
+      }
+    }
+
+    if (!response.ok) {
+      const message = data?.error?.message || this.i18n.t('supabase.genericError');
+      throw new Error(message);
+    }
+
+    return data;
   }
 
   private async getRequiredCurrentUser(): Promise<AppUser> {

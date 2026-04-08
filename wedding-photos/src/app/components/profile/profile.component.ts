@@ -6,7 +6,15 @@ import { Subscription } from 'rxjs';
 import { AlbumService, Album } from '../../services/album.service';
 import { CloudinaryService } from '../../services/cloudinary.service';
 import { NotificationService } from '../../services/notification.service';
-import { PhotoTagNotification, SupabaseService } from '../../services/supabase.service';
+import {
+  PhotoTagNotification,
+  SupabaseService,
+  TaggableGuest
+} from '../../services/supabase.service';
+import {
+  PushNotificationState,
+  PushNotificationsService
+} from '../../services/push-notifications.service';
 import { I18nService } from '../../services/i18n.service';
 import { buildAvatarUrl } from '../../utils/avatar';
 import { MobileMenuComponent } from '../mobile-menu/mobile-menu.component';
@@ -34,16 +42,35 @@ export class ProfileComponent implements OnInit, OnDestroy {
   profileErrorMessage = '';
   currentAlbum?: Album;
   notifications: PhotoTagNotification[] = [];
+  pushState: PushNotificationState = {
+    supported: false,
+    enabled: false,
+    permission: 'unsupported',
+    loading: false
+  };
+  pushMessage = '';
+  pushErrorMessage = '';
+  adminTaggableGuests: TaggableGuest[] = [];
+  adminAnnouncementTitle = '';
+  adminAnnouncementMessage = '';
+  adminAudienceMode: 'all' | 'selected' = 'all';
+  adminRecipientQuery = '';
+  adminRecipientIds: string[] = [];
+  isAdminSending = false;
+  adminMessage = '';
+  adminErrorMessage = '';
   private selectedProfileImage: File | null = null;
   private profilePreviewObjectUrl = '';
   private notificationsSubscription?: Subscription;
   private unreadCountSubscription?: Subscription;
+  private pushStateSubscription?: Subscription;
 
   constructor(
     private albumService: AlbumService,
     private cloudinaryService: CloudinaryService,
     private supabaseService: SupabaseService,
     private notificationService: NotificationService,
+    private pushNotificationsService: PushNotificationsService,
     private router: Router,
     public i18n: I18nService
   ) {}
@@ -64,6 +91,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     await this.albumService.ready(true);
     await this.notificationService.ready(true);
+    await this.pushNotificationsService.refreshState();
+
+    if (this.isAdmin) {
+      await this.loadAdminTaggableGuests();
+    }
+
     this.currentAlbum = this.currentAlbumId
       ? this.albumService.getAlbum(this.currentAlbumId)
       : undefined;
@@ -76,11 +109,16 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.unreadCountSubscription = this.notificationService.unreadCount$.subscribe(count => {
       this.unreadNotificationCount = count;
     });
+
+    this.pushStateSubscription = this.pushNotificationsService.state$.subscribe(state => {
+      this.pushState = state;
+    });
   }
 
   ngOnDestroy(): void {
     this.notificationsSubscription?.unsubscribe();
     this.unreadCountSubscription?.unsubscribe();
+    this.pushStateSubscription?.unsubscribe();
     this.revokeProfilePreview();
   }
 
@@ -108,7 +146,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     try {
       await this.supabaseService.signOut();
     } catch (error) {
-      console.error('Erreur lors de la déconnexion:', error);
+      console.error('Erreur lors de la déconnexion :', error);
     } finally {
       this.clearSession();
       this.router.navigate(['/login']);
@@ -128,6 +166,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   getNotificationThumbnailUrl(notification: PhotoTagNotification): string {
+    if (!notification.photoPublicId || !notification.photoUrl) {
+      return 'assets/icons/KG_logo-192x192.png';
+    }
+
     return this.cloudinaryService.getGalleryMediaUrl(
       notification.photoPublicId,
       notification.photoType,
@@ -151,8 +193,79 @@ export class ProfileComponent implements OnInit, OnDestroy {
     return this.i18n.t('profile.usernameReadonly', { username: this.currentUsername });
   }
 
+  getNotificationTitle(notification: PhotoTagNotification): string {
+    if (notification.type === 'admin_announcement') {
+      return notification.title || this.i18n.t('profile.adminAnnouncementTitleFallback');
+    }
+
+    return notification.actorDisplayName;
+  }
+
   getNotificationText(notification: PhotoTagNotification): string {
+    if (notification.type === 'admin_announcement') {
+      return notification.message || '';
+    }
+
     return this.i18n.t('profile.notificationTagged', { name: notification.actorDisplayName });
+  }
+
+  getNotificationMeta(notification: PhotoTagNotification): string {
+    if (notification.type === 'admin_announcement') {
+      return this.i18n.t('profile.notificationAdminMeta');
+    }
+
+    return notification.actorDisplayName;
+  }
+
+  getPushStatusText(): string {
+    if (!this.pushState.supported) {
+      return this.i18n.t('profile.pushUnsupported');
+    }
+
+    if (this.pushState.loading) {
+      return this.i18n.t('profile.pushBusy');
+    }
+
+    if (this.pushState.permission === 'denied') {
+      return this.i18n.t('profile.pushPermissionDenied');
+    }
+
+    return this.pushState.enabled
+      ? this.i18n.t('profile.pushEnabled')
+      : this.i18n.t('profile.pushDisabled');
+  }
+
+  getPushActionLabel(): string {
+    return this.pushState.enabled
+      ? this.i18n.t('profile.pushDisable')
+      : this.i18n.t('profile.pushEnable');
+  }
+
+  getAdminSelectedGuests(): TaggableGuest[] {
+    return this.adminTaggableGuests.filter(guest => this.adminRecipientIds.includes(guest.id));
+  }
+
+  getAdminMatchingGuests(): TaggableGuest[] {
+    const normalizedQuery = this.normalizeSearchValue(this.adminRecipientQuery);
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return this.adminTaggableGuests
+      .filter(guest => !this.adminRecipientIds.includes(guest.id))
+      .filter(guest =>
+        this.normalizeSearchValue(guest.displayName).includes(normalizedQuery)
+        || this.normalizeSearchValue(guest.username).includes(normalizedQuery)
+      )
+      .slice(0, 6);
+  }
+
+  getGuestAvatarUrl(guest: TaggableGuest): string {
+    return buildAvatarUrl(guest.avatarUrl, guest.displayName, guest.username);
+  }
+
+  isAdminAudienceSelected(): boolean {
+    return this.adminAudienceMode === 'selected';
   }
 
   trackByNotificationId(_: number, notification: PhotoTagNotification): string {
@@ -188,6 +301,101 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.profileAvatarUrl = '';
   }
 
+  async togglePushNotifications(): Promise<void> {
+    this.pushMessage = '';
+    this.pushErrorMessage = '';
+
+    try {
+      if (this.pushState.enabled) {
+        await this.pushNotificationsService.disablePushNotifications();
+        this.pushMessage = this.i18n.t('profile.pushDisabledMessage');
+      } else {
+        await this.pushNotificationsService.enablePushNotifications();
+        this.pushMessage = this.i18n.t('profile.pushEnabledMessage');
+      }
+    } catch (error) {
+      this.pushErrorMessage = error instanceof Error
+        ? error.message
+        : this.i18n.t('profile.pushEnableError');
+    }
+  }
+
+  setAdminAudienceMode(mode: 'all' | 'selected'): void {
+    this.adminAudienceMode = mode;
+    this.adminErrorMessage = '';
+
+    if (mode === 'all') {
+      this.adminRecipientIds = [];
+      this.adminRecipientQuery = '';
+    }
+  }
+
+  onAdminRecipientQueryChange(value: string): void {
+    this.adminRecipientQuery = value;
+  }
+
+  selectAdminRecipient(guestId: string, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+
+    if (!this.adminRecipientIds.includes(guestId)) {
+      this.adminRecipientIds = [...this.adminRecipientIds, guestId];
+    }
+
+    this.adminRecipientQuery = '';
+    this.adminErrorMessage = '';
+  }
+
+  removeAdminRecipient(guestId: string, event?: Event): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.adminRecipientIds = this.adminRecipientIds.filter(id => id !== guestId);
+  }
+
+  async sendAdminAnnouncement(): Promise<void> {
+    this.adminMessage = '';
+    this.adminErrorMessage = '';
+
+    const title = this.adminAnnouncementTitle.trim();
+    const message = this.adminAnnouncementMessage.trim();
+
+    if (!title || !message) {
+      this.adminErrorMessage = this.i18n.t('profile.adminValidation');
+      return;
+    }
+
+    if (this.adminAudienceMode === 'selected' && this.adminRecipientIds.length === 0) {
+      this.adminErrorMessage = this.i18n.t('profile.adminRecipientRequired');
+      return;
+    }
+
+    this.isAdminSending = true;
+
+    try {
+      await this.supabaseService.sendAdminAnnouncement({
+        title,
+        message,
+        recipientUserIds: this.adminAudienceMode === 'selected'
+          ? this.adminRecipientIds
+          : []
+      });
+
+      this.adminAnnouncementTitle = '';
+      this.adminAnnouncementMessage = '';
+      this.adminRecipientIds = [];
+      this.adminRecipientQuery = '';
+      this.adminMessage = this.adminAudienceMode === 'selected'
+        ? this.i18n.t('profile.adminSentOne')
+        : this.i18n.t('profile.adminSentAll');
+    } catch (error) {
+      this.adminErrorMessage = error instanceof Error
+        ? error.message
+        : this.i18n.t('profile.adminSendError');
+    } finally {
+      this.isAdminSending = false;
+    }
+  }
+
   async openNotification(notification: PhotoTagNotification): Promise<void> {
     try {
       if (!notification.isRead) {
@@ -197,9 +405,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
       console.error('Impossible de marquer la notification comme lue :', error);
     }
 
-    await this.router.navigate(['/album', notification.albumId], {
-      queryParams: { photo: notification.photoId }
-    });
+    if (notification.type === 'photo_tag' && notification.albumId && notification.photoId) {
+      await this.router.navigate(['/album', notification.albumId], {
+        queryParams: { photo: notification.photoId }
+      });
+    }
   }
 
   async markAllNotificationsRead(): Promise<void> {
@@ -266,6 +476,23 @@ export class ProfileComponent implements OnInit, OnDestroy {
       this.isSavingProfile = false;
       this.revokeProfilePreview();
     }
+  }
+
+  private async loadAdminTaggableGuests(): Promise<void> {
+    try {
+      this.adminTaggableGuests = await this.supabaseService.fetchTaggableGuests(this.currentUserId);
+    } catch (error) {
+      console.error('Impossible de charger les invités ciblables :', error);
+      this.adminTaggableGuests = [];
+    }
+  }
+
+  private normalizeSearchValue(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
   }
 
   private resetProfileForm(): void {

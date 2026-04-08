@@ -18,6 +18,9 @@ Chaque invite possede un compte, un album unique, peut ajouter ses photos, consu
 - galerie partagee des albums invites
 - suppression de ses propres photos
 - admin capable de vider un album
+- notifications d'identification dans l'app
+- notifications push web optionnelles pour les identifications photo
+- annonce admin personnalisée pour tous les invites ou une selection
 - photo de profil avec avatar par defaut
 - PWA installable sur iPhone et Android
 - enregistrement mobile via partage natif quand disponible
@@ -58,11 +61,23 @@ Configuration utilisee:
 - `CLOUDINARY_CLOUD_NAME`: `dq8x5tkzw`
 - `CLOUDINARY_UPLOAD_PRESET`: `wedding-photos-upload`
 
+Variables serveur a ajouter pour le deploiement:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `WEB_PUSH_VAPID_PRIVATE_KEY`
+- `WEB_PUSH_CONTACT`
+
 ## Base Supabase
 
 Le schema SQL principal est dans:
 
 - [wedding_photos_schema.sql](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/supabase/wedding_photos_schema.sql)
+
+SQL complementaires a executer aussi:
+
+- [photo_tags_notifications.sql](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/supabase/photo_tags_notifications.sql)
+- [push_admin_notifications.sql](/C:/Users/Kevin/Desktop/Projet/wedding-photos/wedding-photos/supabase/push_admin_notifications.sql)
 
 A executer dans `Supabase > SQL Editor`.
 
@@ -101,6 +116,10 @@ Variables d'environnement Vercel:
 - `CLOUDINARY_CLOUD_NAME`
 - `CLOUDINARY_API_KEY`
 - `CLOUDINARY_API_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `WEB_PUSH_VAPID_PRIVATE_KEY`
+- `WEB_PUSH_CONTACT`
 
 Si un override manuel est necessaire:
 
@@ -115,6 +134,7 @@ npm run build
 npm test
 npm run create:admin
 npm run migrate:login-emails
+npm run generate:push-keys
 ```
 
 ## Notes techniques
@@ -122,6 +142,32 @@ npm run migrate:login-emails
 - Supabase Auth peut lever des erreurs de type `Navigator LockManager` sur certains navigateurs mobiles / PWA. Le client utilise ici un `no-op lock` car l'application est pensee principalement pour un usage mobile mono-onglet.
 - Les photos affichees dans la galerie et la visionneuse utilisent des URLs Cloudinary optimisees pour accelerer le chargement.
 - Le telechargement conserve la qualite d'origine.
+- Les notifications push utilisent `web-push` cote serveur et `SwPush` cote Angular.
+- Les annonces admin sont stockees dans `notifications` avec le type `admin_announcement`.
+
+## Notifications push
+
+1. Genere une paire de cles VAPID:
+
+```bash
+npm run generate:push-keys
+```
+
+2. Ajoute ces valeurs dans Vercel:
+
+- `WEB_PUSH_VAPID_PUBLIC_KEY`
+- `WEB_PUSH_VAPID_PRIVATE_KEY`
+- `WEB_PUSH_CONTACT`
+
+3. Ajoute aussi `SUPABASE_SERVICE_ROLE_KEY` dans Vercel.
+
+4. Execute dans Supabase:
+
+- `wedding_photos_schema.sql`
+- `photo_tags_notifications.sql`
+- `push_admin_notifications.sql`
+
+5. Dans l'app, chaque invite active ensuite les notifications depuis `Mon profil`.
 
 ## Limites du mode PWA
 

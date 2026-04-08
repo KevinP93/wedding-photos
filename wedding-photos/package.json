@@ -10,7 +10,8 @@
     "test": "ng test",
     "vercel-build": "ng build --configuration production",
     "create:admin": "node scripts/create-admin.mjs",
-    "migrate:login-emails": "node scripts/migrate-login-emails.mjs"
+    "migrate:login-emails": "node scripts/migrate-login-emails.mjs",
+    "generate:push-keys": "node scripts/generate-push-keys.mjs"
   },
   "private": true,
   "dependencies": {
@@ -30,6 +31,7 @@
     "jszip": "^3.10.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
+    "web-push": "^3.6.7",
     "zone.js": "~0.14.3"
   },
   "devDependencies": {

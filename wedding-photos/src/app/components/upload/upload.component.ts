@@ -216,6 +216,14 @@ export class UploadComponent implements OnInit, OnDestroy {
           if (selectedFile.taggedUserIds.length > 0) {
             try {
               await this.supabaseService.tagPhotoUsers(insertedPhoto.id, selectedFile.taggedUserIds);
+              try {
+                await this.supabaseService.dispatchTagPushNotification(
+                  insertedPhoto.id,
+                  selectedFile.taggedUserIds
+                );
+              } catch (pushError) {
+                console.error('Impossible d\'envoyer la notification push :', pushError);
+              }
             } catch (error) {
               taggingFailures++;
               console.error('Erreur lors de l’identification des invités :', error);

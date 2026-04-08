@@ -1,7 +1,12 @@
 <div class="profile-shell">
   <header class="profile-hero">
     <div class="hero-actions">
-      <button type="button" class="back-btn back-btn--icon" (click)="goBack()" [attr.aria-label]="i18n.t('common.actions.back')">
+      <button
+        type="button"
+        class="back-btn back-btn--icon"
+        (click)="goBack()"
+        [attr.aria-label]="i18n.t('common.actions.back')"
+      >
         <span class="back-btn__chevron" aria-hidden="true"></span>
       </button>
       <app-language-switcher />
@@ -108,6 +113,148 @@
     </div>
   </section>
 
+  <section class="settings-card">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">{{ i18n.t('profile.pushEyebrow') }}</p>
+        <h2>{{ i18n.t('profile.pushTitle') }}</h2>
+      </div>
+      <button
+        type="button"
+        class="primary-btn card-head__action"
+        (click)="togglePushNotifications()"
+        [disabled]="pushState.loading || (!pushState.supported && !pushState.enabled)"
+      >
+        {{ getPushActionLabel() }}
+      </button>
+    </div>
+
+    <p class="card-subtitle">{{ i18n.t('profile.pushSubtitle') }}</p>
+    <p class="status-chip">{{ getPushStatusText() }}</p>
+
+    <div *ngIf="pushMessage" class="profile-message">
+      {{ pushMessage }}
+    </div>
+
+    <div *ngIf="pushErrorMessage" class="profile-error">
+      {{ pushErrorMessage }}
+    </div>
+  </section>
+
+  <section class="settings-card" *ngIf="isAdmin">
+    <div class="card-head">
+      <div>
+        <p class="eyebrow">{{ i18n.t('profile.adminEyebrow') }}</p>
+        <h2>{{ i18n.t('profile.adminTitle') }}</h2>
+      </div>
+    </div>
+
+    <p class="card-subtitle">{{ i18n.t('profile.adminSubtitle') }}</p>
+
+    <div class="profile-form admin-form">
+      <label for="adminAnnouncementTitle">{{ i18n.t('profile.adminFieldTitle') }}</label>
+      <input
+        id="adminAnnouncementTitle"
+        type="text"
+        class="profile-input"
+        [(ngModel)]="adminAnnouncementTitle"
+        [placeholder]="i18n.t('profile.adminFieldTitlePlaceholder')"
+      />
+
+      <label for="adminAnnouncementMessage">{{ i18n.t('profile.adminFieldMessage') }}</label>
+      <textarea
+        id="adminAnnouncementMessage"
+        class="profile-input profile-input--textarea"
+        [(ngModel)]="adminAnnouncementMessage"
+        [placeholder]="i18n.t('profile.adminFieldMessagePlaceholder')"
+      ></textarea>
+
+      <label>{{ i18n.t('profile.adminAudience') }}</label>
+      <div class="audience-toggle" role="group" [attr.aria-label]="i18n.t('profile.adminAudience')">
+        <button
+          type="button"
+          class="ghost-btn audience-toggle__btn"
+          [class.audience-toggle__btn--active]="!isAdminAudienceSelected()"
+          (click)="setAdminAudienceMode('all')"
+        >
+          {{ i18n.t('profile.adminAudienceAll') }}
+        </button>
+        <button
+          type="button"
+          class="ghost-btn audience-toggle__btn"
+          [class.audience-toggle__btn--active]="isAdminAudienceSelected()"
+          (click)="setAdminAudienceMode('selected')"
+        >
+          {{ i18n.t('profile.adminAudienceSelected') }}
+        </button>
+      </div>
+
+      <div *ngIf="isAdminAudienceSelected()" class="recipient-picker">
+        <label for="adminRecipientQuery">{{ i18n.t('profile.adminRecipient') }}</label>
+        <input
+          id="adminRecipientQuery"
+          type="text"
+          class="profile-input"
+          [ngModel]="adminRecipientQuery"
+          (ngModelChange)="onAdminRecipientQueryChange($event)"
+          [placeholder]="i18n.t('profile.adminRecipientPlaceholder')"
+        />
+
+        <div class="recipient-chips" *ngIf="getAdminSelectedGuests().length > 0">
+          <button
+            type="button"
+            class="recipient-chip"
+            *ngFor="let guest of getAdminSelectedGuests()"
+            (click)="removeAdminRecipient(guest.id, $event)"
+          >
+            <img
+              class="recipient-chip__avatar"
+              [src]="getGuestAvatarUrl(guest)"
+              [attr.alt]="i18n.t('common.avatarOf', { name: guest.displayName })"
+            />
+            <span>{{ guest.displayName }}</span>
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="recipient-suggestions" *ngIf="getAdminMatchingGuests().length > 0">
+          <button
+            type="button"
+            class="recipient-suggestion"
+            *ngFor="let guest of getAdminMatchingGuests()"
+            (click)="selectAdminRecipient(guest.id, $event)"
+          >
+            <img
+              class="recipient-suggestion__avatar"
+              [src]="getGuestAvatarUrl(guest)"
+              [attr.alt]="i18n.t('common.avatarOf', { name: guest.displayName })"
+            />
+            <span>{{ guest.displayName }}</span>
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="adminMessage" class="profile-message">
+        {{ adminMessage }}
+      </div>
+
+      <div *ngIf="adminErrorMessage" class="profile-error">
+        {{ adminErrorMessage }}
+      </div>
+
+      <div class="profile-form-actions">
+        <button
+          type="button"
+          class="primary-btn"
+          (click)="sendAdminAnnouncement()"
+          [disabled]="isAdminSending"
+        >
+          {{ isAdminSending ? i18n.t('profile.adminSending') : i18n.t('profile.adminSend') }}
+        </button>
+      </div>
+    </div>
+  </section>
+
   <section class="notifications-card">
     <div class="notifications-head">
       <div>
@@ -140,17 +287,21 @@
         />
 
         <div class="notification-copy">
+          <div class="notification-headline">
+            <strong>{{ getNotificationTitle(notification) }}</strong>
+            <span>{{ notification.createdAt | date:'d MMMM yyyy, HH:mm' }}</span>
+          </div>
+
           <div class="notification-author">
             <img
               class="notification-author-avatar"
               [src]="getNotificationActorAvatarUrl(notification)"
               [attr.alt]="i18n.t('common.avatarOf', { name: notification.actorDisplayName })"
             />
-            <strong>{{ notification.actorDisplayName }}</strong>
+            <span>{{ getNotificationMeta(notification) }}</span>
           </div>
 
           <p>{{ getNotificationText(notification) }}</p>
-          <span>{{ notification.createdAt | date:'d MMMM yyyy, HH:mm' }}</span>
         </div>
 
         <span class="notification-dot" *ngIf="!notification.isRead" aria-hidden="true"></span>
