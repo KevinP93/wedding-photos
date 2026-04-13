@@ -132,8 +132,15 @@ export class PushNotificationsService {
       }
     }
 
-    if (!response.ok || !data?.publicKey) {
-      throw new Error(data?.error?.message || this.i18n.t('profile.pushEnableError'));
+    if (!response.ok) {
+      throw new Error(
+        data?.error?.message
+        || this.i18n.t('profile.pushPublicKeyFetchError', { status: response.status })
+      );
+    }
+
+    if (!data?.publicKey) {
+      throw new Error(this.i18n.t('profile.pushPublicKeyMissing'));
     }
 
     return data.publicKey;
