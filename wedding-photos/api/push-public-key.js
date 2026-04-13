@@ -1,10 +1,10 @@
-const { configureWebPush } = require('./_push');
+const { getPublicPushKey } = require('./_push');
 
 module.exports = async function handler(_req, res) {
   res.setHeader('Content-Type', 'application/json');
 
   try {
-    const { publicKey } = configureWebPush();
+    const publicKey = getPublicPushKey();
     res.status(200).json({ publicKey });
   } catch (error) {
     res.status(500).json({

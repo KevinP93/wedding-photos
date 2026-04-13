@@ -185,8 +185,18 @@ export class PushNotificationsService {
 
   private toFriendlyError(error: unknown): Error {
     if (error instanceof Error) {
+      const normalizedMessage = (error.message || '').toLowerCase();
+
       if (error.name === 'NotAllowedError' || this.getPermissionState() === 'denied') {
         return new Error(this.i18n.t('profile.pushPermissionDenied'));
+      }
+
+      if (normalizedMessage.includes('service worker')) {
+        return new Error(this.i18n.t('profile.pushServiceWorkerUnavailable'));
+      }
+
+      if (normalizedMessage.includes('vapid')) {
+        return new Error(this.i18n.t('profile.pushServerConfigError'));
       }
 
       return error;

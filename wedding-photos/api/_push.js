@@ -1,12 +1,22 @@
 const webpush = require('web-push');
 
-function getPushConfig() {
+function getPublicPushKey() {
   const publicKey = process.env.WEB_PUSH_VAPID_PUBLIC_KEY || '';
-  const privateKey = process.env.WEB_PUSH_VAPID_PRIVATE_KEY || '';
-  const contact = process.env.WEB_PUSH_CONTACT || 'mailto:hello@wedding-photos.local';
 
-  if (!publicKey || !privateKey) {
-    throw new Error('Clés VAPID manquantes.');
+  if (!publicKey) {
+    throw new Error('Clé VAPID publique manquante.');
+  }
+
+  return publicKey;
+}
+
+function getPushConfig() {
+  const publicKey = getPublicPushKey();
+  const privateKey = process.env.WEB_PUSH_VAPID_PRIVATE_KEY || '';
+  const contact = process.env.WEB_PUSH_CONTACT || 'mailto:hello@example.com';
+
+  if (!privateKey) {
+    throw new Error('Clé VAPID privée manquante.');
   }
 
   return {
@@ -22,12 +32,7 @@ function configureWebPush() {
   return { publicKey };
 }
 
-function buildNotificationPayload({
-  title,
-  body,
-  url,
-  tag
-}) {
+function buildNotificationPayload({ title, body, url, tag }) {
   return JSON.stringify({
     notification: {
       title,
@@ -55,13 +60,16 @@ async function sendPushToSubscriptions(subscriptions, payload) {
 
   for (const subscription of subscriptions) {
     try {
-      await webpush.sendNotification({
-        endpoint: subscription.endpoint,
-        keys: {
-          p256dh: subscription.p256dh,
-          auth: subscription.auth
-        }
-      }, payload);
+      await webpush.sendNotification(
+        {
+          endpoint: subscription.endpoint,
+          keys: {
+            p256dh: subscription.p256dh,
+            auth: subscription.auth
+          }
+        },
+        payload
+      );
       deliveredCount++;
     } catch (error) {
       const statusCode = error?.statusCode || 0;
@@ -80,6 +88,7 @@ async function sendPushToSubscriptions(subscriptions, payload) {
 }
 
 module.exports = {
+  getPublicPushKey,
   configureWebPush,
   buildNotificationPayload,
   sendPushToSubscriptions
