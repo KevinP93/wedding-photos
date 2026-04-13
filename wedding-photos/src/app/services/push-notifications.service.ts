@@ -76,21 +76,16 @@ export class PushNotificationsService {
     this.setLoading(true);
 
     try {
+      await navigator.serviceWorker.ready;
       const publicKey = await this.fetchPublicKey();
       const subscription = await this.swPush.requestSubscription({
         serverPublicKey: publicKey
       });
 
-      const json = subscription.toJSON();
-      const p256dh = json.keys?.['p256dh'] || '';
-      const auth = json.keys?.['auth'] || '';
-
-      if (!json.endpoint || !p256dh || !auth) {
-        throw new Error(this.i18n.t('profile.pushEnableError'));
-      }
+      const { endpoint, p256dh, auth } = this.extractSubscriptionPayload(subscription);
 
       await this.supabaseService.upsertPushSubscription({
-        endpoint: json.endpoint,
+        endpoint,
         p256dh,
         auth,
         userAgent: navigator.userAgent || ''
@@ -183,6 +178,45 @@ export class PushNotificationsService {
     });
   }
 
+  private extractSubscriptionPayload(subscription: PushSubscription): {
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  } {
+    const json = subscription.toJSON();
+    const endpoint = json.endpoint || subscription.endpoint || '';
+    const p256dh = json.keys?.['p256dh'] || this.serializeSubscriptionKey(subscription.getKey('p256dh'));
+    const auth = json.keys?.['auth'] || this.serializeSubscriptionKey(subscription.getKey('auth'));
+
+    if (!endpoint || !p256dh || !auth) {
+      throw new Error(this.i18n.t('profile.pushSubscriptionIncomplete'));
+    }
+
+    return {
+      endpoint,
+      p256dh,
+      auth
+    };
+  }
+
+  private serializeSubscriptionKey(key: ArrayBuffer | null): string {
+    if (!key) {
+      return '';
+    }
+
+    const bytes = new Uint8Array(key);
+    let binary = '';
+
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+
+    return btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '');
+  }
+
   private toFriendlyError(error: unknown): Error {
     if (error instanceof Error) {
       const normalizedMessage = (error.message || '').toLowerCase();
@@ -197,6 +231,10 @@ export class PushNotificationsService {
 
       if (normalizedMessage.includes('vapid')) {
         return new Error(this.i18n.t('profile.pushServerConfigError'));
+      }
+
+      if (normalizedMessage.includes('subscription') || normalizedMessage.includes('endpoint')) {
+        return new Error(this.i18n.t('profile.pushSubscriptionIncomplete'));
       }
 
       return error;
